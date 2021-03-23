@@ -1,0 +1,6 @@
+The OOI_USB2000.cat and OOI_USB2000.inf files need to be added to C:\windows\inf to be automatically discovered as
+drivers when the spectrometer is plugged in to the computer via USB. Either that, or you have to go to device manager,
+find the USB2000 connection, hit update driver, and set it to search in the directory that contains these two files.
+
+I'm currently running into the problem where it appears that the USB2000's firmware needs to be updated in order
+to run on Windows 10.
