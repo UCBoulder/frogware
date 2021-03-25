@@ -57,3 +57,68 @@ class PlotWindow:
         self.le_wl_ul = le_wl_ul
         self.le_ll = le_ll
         self.le_ul = le_ul
+
+        self.connect()
+
+    @property
+    def ymax(self):
+        return self.plotwidget.ymax
+
+    @ymax.setter
+    def ymax(self, ymax):
+        self.plotwidget.set_ymax(ymax)
+
+    @property
+    def ymin(self):
+        return self.plotwidget.ymin
+
+    @ymin.setter
+    def ymin(self, ymin):
+        self.plotwidget.set_ymin(ymin)
+
+    @property
+    def xmax(self):
+        return self.plotwidget.xmax
+
+    @xmax.setter
+    def xmax(self, xmax):
+        self.plotwidget.set_xmax(xmax)
+
+    @property
+    def xmin(self):
+        return self.plotwidget.xmin
+
+    @xmin.setter
+    def xmin(self, xmin):
+        self.plotwidget.set_xmin(xmin)
+
+    def update_xmax(self):
+        xmax = float(self.le_wl_ul.text())
+        self.xmax = xmax
+
+    def update_xmin(self):
+        xmin = float(self.le_wl_ll.text())
+        self.xmin = xmin
+
+    def update_ymax(self):
+        ymax = float(self.le_ul.text())
+        self.ymax = ymax
+
+    def update_ymin(self):
+        ymin = float(self.le_ll.text())
+        self.ymin = ymin
+
+    def connect(self):
+        self.le_ul.editingFinished.connect(self.update_ymax)
+        self.le_ll.editingFinished.connect(self.update_ymin)
+        self.le_wl_ul.editingFinished.connect(self.update_xmax)
+        self.le_wl_ll.editingFinished.connect(self.update_xmin)
+
+    def format_to_current_viewBox(self):
+        rect = self.plotwidget.viewRect()
+        self.xmin, self.xmax = rect.left(), rect.right()
+        self.ymin, self.ymax = rect.bottom(), rect.top()
+        self.le_ll.setText('%.3f' % self.ymin)
+        self.le_ul.setText('%.3f' % self.ymax)
+        self.le_wl_ll.setText('%.3f' % self.xmin)
+        self.le_wl_ul.setText('%.3f' % self.xmax)
