@@ -2,7 +2,8 @@ import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
 from Window import Ui_MainWindow
 
-# will be used later on for continuous update
+# will be used later on for any continuous update of the display that lasts more
+# than a few seconds
 pool = qtc.QThreadPool.globalInstance()
 
 

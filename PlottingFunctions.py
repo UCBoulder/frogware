@@ -12,6 +12,7 @@ class PlotWidget(pg.PlotWidget):
         self.getAxis('bottom').setTextPen('k')
 
         self.xmin, self.xmax = 0., 1.
+        self.ymin, self.ymax = 0., 1.
 
     def set_xlabel(self, label):
         self.getAxis('bottom').setLabel(label)
@@ -26,6 +27,14 @@ class PlotWidget(pg.PlotWidget):
     def set_xmax(self, xmax):
         self.setXRange(self.xmin, xmax)
         self.xmax = xmax
+
+    def set_ymin(self, ymin):
+        self.setYRange(ymin, self.ymax)
+        self.ymin = ymin
+
+    def set_ymax(self, ymax):
+        self.setYRange(self.ymin, ymax)
+        self.ymax = ymax
 
 
 def create_curve(color='b', width=2, x=None, y=None):
