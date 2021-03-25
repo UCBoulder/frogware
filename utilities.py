@@ -2,10 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import thorlabs_apt as apt
 import seabreeze.spectrometers as spec
-import pyqtgraph as pg
 
 
 class Spectrometer:
+    """
+    If you don't end up using an Ocean Optics spectrometer, you can incorporate your spectrometer
+    into the GUI by writing a class with the same attributes and methods as this one.
+    """
+
     def __init__(self, spectrometer):
         spectrometer: spec.Spectrometer
         self.spectrometer = spectrometer
