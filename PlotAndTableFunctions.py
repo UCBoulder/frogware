@@ -114,11 +114,20 @@ class PlotWindow:
         self.le_wl_ul.editingFinished.connect(self.update_xmax)
         self.le_wl_ll.editingFinished.connect(self.update_xmin)
 
-    def format_to_current_viewBox(self):
-        rect = self.plotwidget.viewRect()
-        self.xmin, self.xmax = rect.left(), rect.right()
-        self.ymin, self.ymax = rect.bottom(), rect.top()
+    def update_line_edits_to_properties(self):
         self.le_ll.setText('%.3f' % self.ymin)
         self.le_ul.setText('%.3f' % self.ymax)
         self.le_wl_ll.setText('%.3f' % self.xmin)
         self.le_wl_ul.setText('%.3f' % self.xmax)
+
+    def format_to_current_viewBox(self):
+        rect = self.plotwidget.viewRect()
+        self.xmin, self.xmax = rect.left(), rect.right()
+        self.ymin, self.ymax = rect.bottom(), rect.top()
+        self.update_line_edits_to_properties()
+
+    def format_to_curve(self, curve):
+        curve: pg.PlotDataItem
+        self.xmin, self.xmax = curve.xData[[0, -1]]
+        self.ymin, self.ymax = curve.yData[[0, -1]]
+        self.update_line_edits_to_properties()
