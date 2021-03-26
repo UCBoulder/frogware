@@ -33,6 +33,9 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
                                                  self.le_spectrogram_ymin, self.le_spectrogram_ymax,
                                                  self.gv_Spectrogram)
 
+        curve = plotf.create_curve(x=np.linspace(0, 1), y=np.linspace(0, 1))
+        self.plot_cont_upd.plotwidget.addItem(curve)
+
 
 class MotorInterface:
     def __init__(self, spectrometer, motor):
