@@ -18,7 +18,7 @@
     <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -65,7 +65,7 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QPushButton" name="pushButton">
+                <widget class="QPushButton" name="btn_start_cnt_update">
                  <property name="text">
                   <string>Start 
  Continous Update</string>
@@ -93,14 +93,14 @@
                 <item>
                  <layout class="QHBoxLayout" name="horizontalLayout_4">
                   <item>
-                   <widget class="QPushButton" name="pushButton_2">
+                   <widget class="QPushButton" name="btn_step_left">
                     <property name="text">
                      <string>step left</string>
                     </property>
                    </widget>
                   </item>
                   <item>
-                   <widget class="QPushButton" name="pushButton_3">
+                   <widget class="QPushButton" name="btn_step_right">
                     <property name="text">
                      <string>step right</string>
                     </property>
@@ -118,7 +118,7 @@
                    </widget>
                   </item>
                   <item row="0" column="1">
-                   <widget class="QLineEdit" name="lineEdit_9">
+                   <widget class="QLineEdit" name="le_step_size_um">
                     <property name="maximumSize">
                      <size>
                       <width>50</width>
@@ -135,7 +135,7 @@
                    </widget>
                   </item>
                   <item row="1" column="1">
-                   <widget class="QLineEdit" name="lineEdit_10">
+                   <widget class="QLineEdit" name="le_step_size_fs">
                     <property name="maximumSize">
                      <size>
                       <width>50</width>
@@ -165,7 +165,7 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QPushButton" name="pushButton_4">
+                <widget class="QPushButton" name="btn_home_stage">
                  <property name="text">
                   <string>home the stage</string>
                  </property>
@@ -205,7 +205,7 @@
                    </spacer>
                   </item>
                   <item>
-                   <widget class="QPushButton" name="pushButton_5">
+                   <widget class="QPushButton" name="btn_move_to_pos">
                     <property name="text">
                      <string>move to position</string>
                     </property>
@@ -236,7 +236,7 @@
                    </widget>
                   </item>
                   <item row="0" column="1">
-                   <widget class="QLineEdit" name="lineEdit_11">
+                   <widget class="QLineEdit" name="le_pos_um">
                     <property name="maximumSize">
                      <size>
                       <width>50</width>
@@ -253,7 +253,7 @@
                    </widget>
                   </item>
                   <item row="1" column="1">
-                   <widget class="QLineEdit" name="lineEdit_12">
+                   <widget class="QLineEdit" name="le_pos_fs">
                     <property name="maximumSize">
                      <size>
                       <width>50</width>
@@ -292,7 +292,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLCDNumber" name="lcdNumber"/>
+                  <widget class="QLCDNumber" name="lcd_cnt_update_current_pos_um"/>
                  </item>
                 </layout>
                </item>
@@ -336,7 +336,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLCDNumber" name="lcdNumber_3"/>
+                  <widget class="QLCDNumber" name="lcd_cnt_update_current_pos_fs"/>
                  </item>
                 </layout>
                </item>
@@ -371,7 +371,7 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QPushButton" name="pushButton_7">
+                <widget class="QPushButton" name="btn_set_T0">
                  <property name="text">
                   <string>set T0</string>
                  </property>

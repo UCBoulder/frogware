@@ -1,3 +1,5 @@
+"""This file should handle all the customized plotting and table widgets"""
+
 import pyqtgraph as pg
 import PyQt5.QtWidgets as qt
 
