@@ -2,6 +2,7 @@
 
 import pyqtgraph as pg
 import PyQt5.QtWidgets as qt
+import PyQt5.QtGui as qtg
 
 
 class PlotWidget(pg.PlotWidget):
@@ -59,6 +60,11 @@ class PlotWindow:
         self.le_wl_ul = le_wl_ul
         self.le_ll = le_ll
         self.le_ul = le_ul
+
+        self.le_wl_ll.setValidator(qtg.QDoubleValidator())
+        self.le_wl_ul.setValidator(qtg.QDoubleValidator())
+        self.le_ll.setValidator(qtg.QDoubleValidator())
+        self.le_ul.setValidator(qtg.QDoubleValidator())
 
         self.connect()
 
