@@ -152,8 +152,6 @@ class ContinuousUpdate:
         self.main_window = main_window
         self.spectrometer = spectrometer
         self.motor_interface = motor_interface
-        self.runnable_update_spectrum = UpdateSpectrumRunnable(self.spectrometer)
-        self.runnable_update_motor = UpdateMotorPositionRunnable(self.motor_interface)
 
         # get convenient access to relevant main window attributes
         self.btn_start = self.main_window.btn_start_cnt_update
@@ -187,29 +185,48 @@ class ContinuousUpdate:
         self.le_step_size_fs.setValidator(qtg.QDoubleValidator())
         self.le_step_size_um.setValidator(qtg.QDoubleValidator())
 
+        # allow the lcd to display decimals, and adjust a format setting so
+        # the numbers don't show up faded.
+        self.lcd_current_pos_fs.setSmallDecimalPoint(True)
+        self.lcd_current_pos_fs.setSegmentStyle(qt.QLCDNumber.Flat)
+        self.lcd_current_pos_um.setSmallDecimalPoint(True)
+        self.lcd_current_pos_um.setSegmentStyle(qt.QLCDNumber.Flat)
+
         # connect and initialize
         self.connect()
+
         self.update_stepsize_from_le_fs()
 
-    def connect(self):
-        # if the stop action button is pressed, stop the continuous update
-        self.actionStop.triggered.connect(self.stop_continuous_update)
+    # I have create_runnable and connect_runnable defined separately because
+    # every time the pool finishes it deletes the instance, so it needs to be
+    # re-initialized every time
+    def create_runnable(self, string):
+        if string == "spectrum":
+            self.runnable_update_spectrum = UpdateSpectrumRunnable(self.spectrometer)
+        elif string == "motor":
+            self.runnable_update_motor = UpdateMotorPositionRunnable(self.motor_interface)
 
+    def connect_runnable(self, string):
+        if string == 'spectrum':
+            # for each retrieval of the spectrum update the plot in the gui
+            self.runnable_update_spectrum.progress.connect(self.plot_update)
+
+            # if the stop action button is pressed, stop the continuous update
+            self.actionStop.triggered.connect(self.stop_continuous_update)
+        elif string == "motor":
+            # continuously update motor position
+            self.runnable_update_motor.progress.connect(self.update_current_pos)
+
+            # if the stop button is pushed, also stop the motor (in a controlled manner)
+            self.actionStop.triggered.connect(self.stop_motor)
+
+    def connect(self):
         # if the start continuous update button is pressed start the continuous update
         self.btn_start.clicked.connect(self.start_continuous_update)
-
-        # for each retrieval of the spectrum update the plot in the gui
-        self.runnable_update_spectrum.progress.connect(self.plot_update)
 
         # update step size (for both um and fs)
         self.le_step_size_um.editingFinished.connect(self.update_stepsize_from_le_um)
         self.le_step_size_fs.editingFinished.connect(self.update_stepsize_from_le_fs)
-
-        # continuously update motor position
-        self.runnable_update_motor.progress.connect(self.update_current_pos)
-
-        # if the stop button is pushed, also stop the motor (in a controlled manner)
-        self.actionStop.triggered.connect(self.stop_motor)
 
         # update move_to_pos (for both um and fs)
         self.le_pos_um.editingFinished.connect(self.update_move_to_pos_le_um)
@@ -309,6 +326,10 @@ class ContinuousUpdate:
         self.le_pos_fs.setText('%.3f' % self.move_to_pos_fs)
 
     def start_continuous_update(self):
+        # create a runnable instance and connect the relevant signals and slots
+        self.create_runnable('spectrum')
+        self.connect_runnable('spectrum')
+
         # start the continuous update
         pool.start(self.runnable_update_spectrum)
 
@@ -342,6 +363,11 @@ class ContinuousUpdate:
         exceed = self.motor_interface.value_exceeds_limits(self.move_to_pos_um)
         if not exceed:
             self.motor_interface.pos_um = self.move_to_pos_um
+
+            # create a runnable instance and connect the relevant signals and slots
+            self.create_runnable('motor')
+            self.connect_runnable('motor')
+
             pool.start(self.runnable_update_motor)
         else:
             return
@@ -356,7 +382,6 @@ class ContinuousUpdate:
     def set_T0(self):
         # I think this ought to do it
         self.T0_um = 0
-        self.motor_interface.pos_fs = 0
 
     def home_stage(self):
         self.motor_interface.motor.home_motor(blocking=False)

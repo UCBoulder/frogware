@@ -940,6 +940,11 @@
           </row>
           <column>
            <property name="text">
+            <string>Setting</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
             <string>Upper Limit</string>
            </property>
           </column>
@@ -953,7 +958,12 @@
             <string>Units</string>
            </property>
           </column>
-          <item row="0" column="2">
+          <item row="0" column="0">
+           <property name="text">
+            <string>1</string>
+           </property>
+          </item>
+          <item row="0" column="3">
            <property name="text">
             <string>ms</string>
            </property>

@@ -16,7 +16,7 @@ class Spectrometer:
         spectrometer: spec.Spectrometer
         self.spectrometer = spectrometer
 
-        self._integration_time_micros = None
+        self._integration_time_micros = 1000  # 1ms
 
     def get_spectrum(self):
         """
