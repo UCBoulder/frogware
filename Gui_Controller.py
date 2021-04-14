@@ -51,7 +51,8 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.show()
 
-        # I will eventually delete these, but I have them here for now for reference
+        # I will eventually delete these, but I have them here for now for reference (or else I'll forget
+        # and have to remember what to write again)
         self.plot_cont_upd = plotf.PlotWindow(self.le_cont_upd_xmin, self.le_cont_upd_xmax, self.le_cont_upd_ymin,
                                               self.le_cont_upd_ymax, self.gv_cont_upd_spec)
 
@@ -80,35 +81,23 @@ class MotorInterface:
         self.motor = motor
 
         self.T0_um = 0  # T0 position of the motor in micron
-        self._pos_um = 0  # position of the motor in micron
 
-        # initialize motor position
-        self._pos_um = self.motor.position * 1e6  # assuming they give position in mks?
+        # don't let the stage come closer than this to the stage limits.
+        self._safety_buffer_mm = 1.
 
     @property
     def pos_um(self):
-        return self._pos_um
-
-    @property
-    def pos_m(self):
-        return self._pos_um * 1e-6
+        return self.motor.position_mm * 1e3
 
     @property
     def pos_fs(self):
         # pos_fs is taken from pos_um and T0_um
         return (self.pos_um - self.T0_um) * 1e9 / c_mks
 
-    @pos_m.setter
-    def pos_m(self, value_mks):
-        # pos_mks is taken from pos_um, so to set pos_mks just set pos_um
-        self.pos_um = value_mks * 1e6
-
     @pos_um.setter
     def pos_um(self, value_um):
-        self._pos_um = value_um
-
-        # move the motor to the new position
-        self.motor.position = self.pos_m
+        # move the motor to the new position, assuming they give the motor position in mm
+        self.motor.position_mm = value_um * 1e-3
 
     @pos_fs.setter
     def pos_fs(self, value_fs):
@@ -123,33 +112,48 @@ class MotorInterface:
 
         # move the motor to the new position and update the position in micron
         self.motor.move_by(value_m)
-        # it is important that you update _pos_um, or else setting pos_um will continue to move the motor
-        # in absolute mode to that position.
-        self._pos_um += value_um
 
     def move_by_um(self, value_um):
         value_m = value_um * 1e-6
 
         # move the motor to the new position and update the position in micron
-        # it is important that you update _pos_um, or else setting pos_um will continue to move the motor
-        # in absolute mode to that position.
         self.motor.move_by(value_m)
-        self._pos_um += value_um
+
+    def value_exceeds_limits(self, value_um):
+        predicted_pos_um = value_um + self.pos_um
+        max_limit_um = self.motor.max_pos_mm * 1e3
+        min_limit_um = self.motor.min_pos_mm * 1e3
+        buffer_um = self._safety_buffer_mm * 1e3
+
+        if (predicted_pos_um < min_limit_um + buffer_um) or (predicted_pos_um > max_limit_um - buffer_um):
+            raise_error("too close to stage limits (within 1mm)")
+            return True
+        else:
+            return False
 
 
 class ContinuousUpdate:
     """
-    This class interfaces the Spectrum Continuous Update tab with the main window
+    This class interfaces the Spectrum Continuous Update tab with the main window.
+    It expects an instance
+    of the MainWindow, MotorInterface, and util.Spectrometer class in the init function.
     """
 
-    def __init__(self, main_window, motor, spectrometer):
+    def __init__(self, main_window, motor_interface, spectrometer):
+        """
+        :param main_window:
+        :param motor_interface:
+        :param spectrometer:
+        """
+
         main_window: MainWindow
-        motor: MotorInterface
+        motor_interface: MotorInterface
         spectrometer: util.Spectrometer
         self.main_window = main_window
         self.spectrometer = spectrometer
-        self.motor = motor
-        self.runnable = UpdateSpectrumRunnable(self.spectrometer)
+        self.motor_interface = motor_interface
+        self.runnable_update_spectrum = UpdateSpectrumRunnable(self.spectrometer)
+        self.runnable_update_motor = UpdateMotorPositionRunnable(self.motor_interface)
 
         # get convenient access to relevant main window attributes
         self.btn_start = self.main_window.btn_start_cnt_update
@@ -167,7 +171,7 @@ class ContinuousUpdate:
         self.plot_window = plotf.PlotWindow(self.main_window.le_cont_upd_xmin, self.main_window.le_cont_upd_xmax,
                                             self.main_window.le_cont_upd_ymin, self.main_window.le_cont_upd_ymax,
                                             self.main_window.gv_cont_upd_spec)
-        self.stop = self.main_window.actionStop
+        self.actionStop = self.main_window.actionStop
 
         # create a curve and add it to the plotwidget
         self.curve = plotf.create_curve()
@@ -175,6 +179,7 @@ class ContinuousUpdate:
 
         # initialize the step size, 0 is arbitrary
         self._step_size_fs = 0
+        self._move_to_pos_fs = 0
 
         # the inputs have to be floats
         self.le_pos_fs.setValidator(qtg.QDoubleValidator())
@@ -182,7 +187,43 @@ class ContinuousUpdate:
         self.le_step_size_fs.setValidator(qtg.QDoubleValidator())
         self.le_step_size_um.setValidator(qtg.QDoubleValidator())
 
+        # connect and initialize
         self.connect()
+        self.update_stepsize_from_le_fs()
+
+    def connect(self):
+        # if the stop action button is pressed, stop the continuous update
+        self.actionStop.triggered.connect(self.stop_continuous_update)
+
+        # if the start continuous update button is pressed start the continuous update
+        self.btn_start.clicked.connect(self.start_continuous_update)
+
+        # for each retrieval of the spectrum update the plot in the gui
+        self.runnable_update_spectrum.progress.connect(self.plot_update)
+
+        # update step size (for both um and fs)
+        self.le_step_size_um.editingFinished.connect(self.update_stepsize_from_le_um)
+        self.le_step_size_fs.editingFinished.connect(self.update_stepsize_from_le_fs)
+
+        # continuously update motor position
+        self.runnable_update_motor.progress.connect(self.update_current_pos)
+
+        # if the stop button is pushed, also stop the motor (in a controlled manner)
+        self.actionStop.triggered.connect(self.stop_motor)
+
+        # update move_to_pos (for both um and fs)
+        self.le_pos_um.editingFinished.connect(self.update_move_to_pos_le_um)
+        self.le_pos_fs.editingFinished.connect(self.update_move_to_pos_le_fs)
+
+        # connect the set T0 button
+        self.btn_setT0.clicked.connect(self.set_T0)
+
+        # connect the home stage button
+        self.btn_home_stage.clicked.connect(self.home_stage)
+
+    @property
+    def T0_um(self):
+        return self.motor_interface.T0_um
 
     @property
     def step_size_um(self):
@@ -193,22 +234,51 @@ class ContinuousUpdate:
     def step_size_fs(self):
         return self._step_size_fs
 
+    @property
+    def move_to_pos_fs(self):
+        return self._move_to_pos_fs
+
+    @property
+    def move_to_pos_um(self):
+        return self._move_to_pos_fs * 1e-9 * c_mks + self.T0_um
+
+    @T0_um.setter
+    def T0_um(self, value_um):
+        self.motor_interface.T0_um = value_um
+
+    @move_to_pos_fs.setter
+    def move_to_pos_fs(self, value_fs):
+        self._move_to_pos_fs = value_fs
+
+        # update the line edits
+        self.update_move_to_pos_le_fs()
+        self.update_move_to_pos_le_um()
+
+    @move_to_pos_um.setter
+    def move_to_pos_um(self, value_um):
+        value_fs = (value_um - self.T0_um) * 1e9 / c_mks
+        self.move_to_pos_fs = value_fs
+
+        # update the line edits
+        self.update_move_to_pos_le_fs()
+        self.update_move_to_pos_le_um()
+
     @step_size_um.setter
     def step_size_um(self, value_um):
         # step_size_um is based off step_size_fs so just update step_size_fs
         self._step_size_fs = value_um * 1e9 / c_mks
 
         # update the line edits
-        self.update_le_um()
-        self.update_le_fs()
+        self.update_stepsize_le_um()
+        self.update_stepsize_le_fs()
 
     @step_size_fs.setter
     def step_size_fs(self, value_fs):
         self._step_size_fs = value_fs
 
         # update the line edits
-        self.update_le_um()
-        self.update_le_fs()
+        self.update_stepsize_le_um()
+        self.update_stepsize_le_fs()
 
     def update_stepsize_from_le_um(self):
         step_size_um = float(self.le_step_size_um.text())
@@ -218,30 +288,33 @@ class ContinuousUpdate:
         step_size_fs = float(self.le_step_size_fs.text())
         self.step_size_fs = step_size_fs
 
-    def update_le_um(self):
+    def update_move_to_pos_from_le_um(self):
+        move_to_pos_um = float(self.le_pos_um.text())
+        self.move_to_pos_um = move_to_pos_um
+
+    def update_move_to_pos_from_le_fs(self):
+        move_to_pos_fs = float(self.le_pos_fs.text())
+        self.move_to_pos_fs = move_to_pos_fs
+
+    def update_stepsize_le_um(self):
         self.le_step_size_um.setText('%.3f' % self.step_size_um)
 
-    def update_le_fs(self):
+    def update_stepsize_le_fs(self):
         self.le_step_size_fs.setText('%.3f' % self.step_size_fs)
 
-    def connect(self):
-        # if the stop action button is pressed, stop the continuous update
-        self.stop.triggered.connect(self.stop_continuous_update)
-        # if the start continuous update button is pressed start the continuous update
-        self.btn_start.clicked.connect(self.start_continuous_update)
-        # for each retrieval of the spectrum update the plot in the gui
-        self.runnable.progress.connect(self.plot_update)
-        # update step size (for both um and fs)
-        self.le_step_size_um.editingFinished.connect(self.update_stepsize_from_le_um)
-        self.le_step_size_fs.editingFinished.connect(self.update_stepsize_from_le_fs)
+    def update_move_to_pos_le_um(self):
+        self.le_pos_um.setText('%.3f' % self.move_to_pos_um)
+
+    def update_move_to_pos_le_fs(self):
+        self.le_pos_fs.setText('%.3f' % self.move_to_pos_fs)
 
     def start_continuous_update(self):
         # start the continuous update
-        pool.start(self.runnable)
+        pool.start(self.runnable_update_spectrum)
 
     def stop_continuous_update(self):
         # stop the continuous update
-        self.runnable.stop()
+        self.runnable_update_spectrum.stop()
 
     def plot_update(self, X):
         # the signal should emit wavelengths and intensities
@@ -250,19 +323,63 @@ class ContinuousUpdate:
         self.curve.setData(x=wavelengths, y=intensities)
 
     def step_right(self):
-        pass
+        exceed = self.motor_interface.value_exceeds_limits(self.step_size_um)
+        if not exceed:
+            self.motor_interface.move_by_um(self.step_size_um)
+            self.update_current_pos()
+        else:
+            return
 
     def step_left(self):
-        pass
+        exceed = self.motor_interface.value_exceeds_limits(-self.step_size_um)
+        if not exceed:
+            self.motor_interface.move_by_um(self.step_size_um)
+            self.update_current_pos()
+        else:
+            return
 
     def move_to_pos(self):
-        pass
+        exceed = self.motor_interface.value_exceeds_limits(self.move_to_pos_um)
+        if not exceed:
+            self.motor_interface.pos_um = self.move_to_pos_um
+            pool.start(self.runnable_update_motor)
+        else:
+            return
+
+    def update_current_pos(self):
+        self.lcd_current_pos_um.display('%.3f' % self.motor_interface.pos_um)
+        self.lcd_current_pos_fs.display('%.3f' % self.motor_interface.pos_fs)
+
+    def stop_motor(self):
+        self.runnable_update_motor.stop()
 
     def set_T0(self):
-        pass
+        # I think this ought to do it
+        self.T0_um = 0
+        self.motor_interface.pos_fs = 0
 
     def home_stage(self):
-        pass
+        self.motor_interface.motor.home_motor(blocking=False)
+
+
+class UpdateMotorPositionRunnable(qtc.QRunnable):
+    def __init__(self, motor_interface):
+        super().__init__()
+
+        motor_interface: MotorInterface
+        self.motor_interface = motor_interface
+        self.signal = Signal()
+        self.started = self.signal.started
+        self.progress = self.signal.progress
+        self.finished = self.signal.finished
+
+    def stop(self):
+        self.motor_interface.motor.stop_motor()
+
+    def run(self):
+        while self.motor_interface.motor.is_in_motion:
+            self.progress.emit(None)
+            time.sleep(.05)
 
 
 class UpdateSpectrumRunnable(qtc.QRunnable):
@@ -289,16 +406,16 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
         self._stop = True
 
     def run(self):
-        # while the stop attribute is false, continuously get the spectrum
+        # while stop is false, continuously get the spectrum
         while True:
             if not self._stop:
                 # get the spectrum
                 wavelengths, intensities = self.spectrometer.get_spectrum()
                 # emit the spectrum as a signal
                 self.progress.emit([wavelengths, intensities])
-                # I don't know how fast it does this, so I'm telling it to sleep for .1 seconds. If
-                # it turns out that it already takes ~.1s to get the spectrum then you can delete this
-                time.sleep(.1)
+                # I don't know how fast it does this, so I'm telling it to sleep for .05 seconds. If
+                # it turns out that it already takes ~.05s to get the spectrum then you can delete this
+                time.sleep(.05)
             else:
                 return
 

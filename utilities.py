@@ -44,23 +44,41 @@ class Spectrometer:
 
 class Motor:
     """
-    This is a simple motor class that uses the thorlabs_apt package. Currently, it is able to
-    read and set the motor position (both relatively and absolutely), and home the motor.
+    This is a motor class that uses the thorlabs_apt package.
     """
 
     def __init__(self, motor):
         motor: apt.Motor
         self.motor = motor
 
+        self._min_pos, self._max_pos, self._units, self._pitch = self.motor.get_stage_axis_info()
+
     @property
-    def position(self):
+    def position_mm(self):
         # returns the motor position
         return self.motor.position
 
-    @position.setter
-    def position(self, value):
+    @property
+    def max_pos_mm(self):
+        return self._max_pos
+
+    @property
+    def min_pos_mm(self):
+        return self._min_pos
+
+    @property
+    def units(self):
+        return self._units
+
+    @position_mm.setter
+    def position_mm(self, value):
         # setting the motor position tells the motor to move in absolute mode and is non-blocking
         self.motor.position = value
+
+    @property
+    def is_in_motion(self):
+        # is the motor currently in motion?
+        return self.motor.is_in_motion
 
     def move_by(self, value, blocking=False):
         # move relative
@@ -69,3 +87,6 @@ class Motor:
     def home_motor(self, blocking=False):
         # home the motor
         self.motor.move_home(blocking)
+
+    def stop_motor(self):
+        self.motor.stop_profiled()
