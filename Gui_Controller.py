@@ -68,7 +68,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         # should end up doing something like:
         # serial_number = apt.list_available_devices()[1]
         # motor = apt.Motor(serial_number)
-        # self.motor = util.Motor(motor)
+        # self.motor = MotorInterface(util.Motor(motor))
         # spectrometer = seabreeze.spectrometers.list_devices()[0]
         # self.spectrometer = util.Spectrometer(spectrometer)
 
@@ -88,7 +88,7 @@ class MotorInterface:
         self.T0_um = 0  # T0 position of the motor in micron
 
         # don't let the stage come closer than this to the stage limits.
-        self._safety_buffer_mm = 1e-3
+        self._safety_buffer_mm = 1e-3 # 1um
 
         self.error_window = ErrorWindow()
 

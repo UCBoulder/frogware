@@ -845,7 +845,7 @@
            <item>
             <layout class="QVBoxLayout" name="verticalLayout_3">
              <item>
-              <widget class="PlotWidget" name="gv_Spectrogram">
+              <widget class="ImageWithAxisWidget" name="gv_Spectrogram">
                <property name="minimumSize">
                 <size>
                  <width>620</width>
@@ -1009,6 +1009,11 @@
    <class>PlotWidget</class>
    <extends>QGraphicsView</extends>
    <header>PlotAndTableFunctions</header>
+  </customwidget>
+  <customwidget>
+   <class>ImageWithAxisWidget</class>
+   <extends>QGraphicsView</extends>
+   <header>PlotAndTableFunctions.h</header>
   </customwidget>
  </customwidgets>
  <resources>

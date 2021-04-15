@@ -333,7 +333,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_7.addLayout(self.verticalLayout_8)
         self.verticalLayout_3 = QtWidgets.QVBoxLayout()
         self.verticalLayout_3.setObjectName("verticalLayout_3")
-        self.gv_Spectrogram = PlotWidget(self.groupBox1)
+        self.gv_Spectrogram = ImageWithAxisWidget(self.groupBox1)
         self.gv_Spectrogram.setMinimumSize(QtCore.QSize(620, 439))
         self.gv_Spectrogram.setObjectName("gv_Spectrogram")
         self.verticalLayout_3.addWidget(self.gv_Spectrogram)
@@ -472,5 +472,5 @@ class Ui_MainWindow(object):
         self.actionOpen.setText(_translate("MainWindow", "Open"))
         self.actionSave.setText(_translate("MainWindow", "Save"))
         self.actionStop.setText(_translate("MainWindow", "Stop"))
-from PlotAndTableFunctions import PlotWidget
+from PlotAndTableFunctions import ImageWithAxisWidget, PlotWidget
 import QRC_file_rc

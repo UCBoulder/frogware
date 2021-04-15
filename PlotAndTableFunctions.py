@@ -3,6 +3,9 @@
 import pyqtgraph as pg
 import PyQt5.QtWidgets as qt
 import PyQt5.QtGui as qtg
+from matplotlib import cm
+import numpy as np
+from scipy.misc import face
 
 
 class PlotWidget(pg.PlotWidget):
@@ -139,3 +142,84 @@ class PlotWindow:
         self.xmin, self.xmax = curve.xData[[0, -1]]
         self.ymin, self.ymax = curve.yData[[0, -1]]
         self.update_line_edits_to_properties()
+
+
+def get_colormap(string):
+    pos = np.linspace(0, 1, 300)
+    lut = cm.get_cmap(string)(pos) * 255
+    return pos, lut
+
+
+# The following should also be able to be passed in as an argument to the init function of PlotWindow (in place of
+# PlotWidget) However, note the format_to_current_viewBox method will format it to something really big I don't think
+# I'll use that method but if you do you should change plotwidget.viewRect() to plotwidget.PlotItem.viewRect()
+class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.show()
+        self.setBackground('w')
+
+        self.PlotItem = pg.PlotItem()
+        self.addItem(self.PlotItem)
+
+        self.PlotItem.getAxis('left').setPen('k')
+        self.PlotItem.getAxis('bottom').setPen('k')
+        self.PlotItem.getAxis('left').setTextPen('k')
+        self.PlotItem.getAxis('bottom').setTextPen('k')
+
+        self.ii = pg.ImageItem()
+        self.PlotItem.addItem(self.ii)
+
+        self.plot_image()
+
+        self.xmin, self.xmax = 0., 1.
+        self.ymin, self.ymax = 0., 1.
+
+        # Testing... IT WORKS!
+        # self.set_xlabel("x")
+        # self.set_ylabel("y")
+        # self.set_xmin(-1)
+        # self.set_ymin(-1)
+        # self.set_xmax(2)
+        # self.set_ymax(2)
+
+    def set_xlabel(self, label):
+        self.PlotItem.getAxis('bottom').setLabel(label)
+
+    def set_ylabel(self, label):
+        self.PlotItem.getAxis('left').setLabel(label)
+
+    def set_xmin(self, xmin):
+        self.PlotItem.setXRange(xmin, self.xmax)
+        self.xmin = xmin
+
+    def set_xmax(self, xmax):
+        self.PlotItem.setXRange(self.xmin, xmax)
+        self.xmax = xmax
+
+    def set_ymin(self, ymin):
+        self.PlotItem.setYRange(ymin, self.ymax)
+        self.ymin = ymin
+
+    def set_ymax(self, ymax):
+        self.PlotItem.setYRange(self.ymin, ymax)
+        self.ymax = ymax
+
+    def plot_image(self, x=np.array([0, 1]), y=np.array([0, 1]), data=face(True), cmap='cividis', format='xy'):
+        _, lut = get_colormap(cmap)
+        self.ii.setImage(data)
+        self.ii.setLookupTable(lut)
+
+        xlims, ylims = x[[0, -1]], y[[0, -1]]
+        x0, y0 = xlims[0], ylims[0]
+
+        if format == 'ij':
+            yscale, xscale = data.shape
+            self.ii.translate(y0, x0)
+            self.ii.scale(np.diff(ylims) / yscale, np.diff(xlims) / xscale)
+        elif format == 'xy':
+            xscale, yscale = data.shape
+            self.ii.translate(x0, y0)
+            self.ii.scale(np.diff(xlims) / xscale, np.diff(ylims) / yscale)
+        else:
+            raise ValueError("format should be 'ij' or 'xy'")
