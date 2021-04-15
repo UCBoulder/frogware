@@ -1,9 +1,8 @@
 """This file should handle all the direct hardware interfacing"""
 
-import numpy as np
-import matplotlib.pyplot as plt
-import thorlabs_apt as apt
-import seabreeze.spectrometers as spec
+
+# import thorlabs_apt as apt
+# import seabreeze.spectrometers as spec
 
 
 class Spectrometer:
@@ -13,7 +12,7 @@ class Spectrometer:
     """
 
     def __init__(self, spectrometer):
-        spectrometer: spec.Spectrometer
+        # spectrometer: spec.Spectrometer
         self.spectrometer = spectrometer
 
         self._integration_time_micros = 1000  # 1ms
@@ -48,7 +47,7 @@ class Motor:
     """
 
     def __init__(self, motor):
-        motor: apt.Motor
+        # motor: apt.Motor
         self.motor = motor
 
         self._min_pos, self._max_pos, self._units, self._pitch = self.motor.get_stage_axis_info()

@@ -9,6 +9,7 @@ import utilities as util
 import time
 from Error import Ui_Form
 import PyQt5.QtGui as qtg
+import emulators as em
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
@@ -29,15 +30,14 @@ class ErrorWindow(qt.QWidget, Ui_Form):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        self.show()
 
     def set_text(self, text):
         self.textBrowser.setText(text)
 
 
-def raise_error(text):
-    error_window = ErrorWindow()
+def raise_error(error_window, text):
     error_window.set_text(text)
+    error_window.show()
 
 
 class MainWindow(qt.QMainWindow, Ui_MainWindow):
@@ -53,14 +53,16 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
         # I will eventually delete these, but I have them here for now for reference (or else I'll forget
         # and have to remember what to write again)
-        self.plot_cont_upd = plotf.PlotWindow(self.le_cont_upd_xmin, self.le_cont_upd_xmax, self.le_cont_upd_ymin,
-                                              self.le_cont_upd_ymax, self.gv_cont_upd_spec)
-
-        self.plot_spectrogram = plotf.PlotWindow(self.le_spectrogram_xmin, self.le_spectrogram_xmax,
-                                                 self.le_spectrogram_ymin, self.le_spectrogram_ymax,
-                                                 self.gv_Spectrogram)
+        # self.plot_cont_upd = plotf.PlotWindow(self.le_cont_upd_xmin, self.le_cont_upd_xmax, self.le_cont_upd_ymin,
+        #                                       self.le_cont_upd_ymax, self.gv_cont_upd_spec)
+        #
+        # self.plot_spectrogram = plotf.PlotWindow(self.le_spectrogram_xmin, self.le_spectrogram_xmax,
+        #                                          self.le_spectrogram_ymin, self.le_spectrogram_ymax,
+        #                                          self.gv_Spectrogram)
 
         self.connect_motor_spectrometer()
+
+        self.continuous_update_tab = ContinuousUpdate(self, self.motor_interface, self.spectrometer)
 
     def connect_motor_spectrometer(self):
         # should end up doing something like:
@@ -69,7 +71,10 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         # self.motor = util.Motor(motor)
         # spectrometer = seabreeze.spectrometers.list_devices()[0]
         # self.spectrometer = util.Spectrometer(spectrometer)
-        pass
+
+        self.motor_interface = MotorInterface(util.Motor(em.Motor()))
+        self.spectrometer = util.Spectrometer(em.Spectrometer())
+        # pass
 
 
 class MotorInterface:
@@ -83,7 +88,9 @@ class MotorInterface:
         self.T0_um = 0  # T0 position of the motor in micron
 
         # don't let the stage come closer than this to the stage limits.
-        self._safety_buffer_mm = 1.
+        self._safety_buffer_mm = 1e-3
+
+        self.error_window = ErrorWindow()
 
     @property
     def pos_um(self):
@@ -108,16 +115,16 @@ class MotorInterface:
     def move_by_fs(self, value_fs):
         # obtain the distance to move in micron and meters
         value_um = value_fs * 1e-9 * c_mks
-        value_m = value_um * 1e-6
+        value_mm = value_um * 1e-3
 
         # move the motor to the new position and update the position in micron
-        self.motor.move_by(value_m)
+        self.motor.move_by(value_mm)
 
     def move_by_um(self, value_um):
-        value_m = value_um * 1e-6
+        value_mm = value_um * 1e-3
 
         # move the motor to the new position and update the position in micron
-        self.motor.move_by(value_m)
+        self.motor.move_by(value_mm)
 
     def value_exceeds_limits(self, value_um):
         predicted_pos_um = value_um + self.pos_um
@@ -126,7 +133,8 @@ class MotorInterface:
         buffer_um = self._safety_buffer_mm * 1e3
 
         if (predicted_pos_um < min_limit_um + buffer_um) or (predicted_pos_um > max_limit_um - buffer_um):
-            raise_error("too close to stage limits (within 1mm)")
+            print("I raised an error!")
+            raise_error(self.error_window, "too close to stage limits (within 1um)")
             return True
         else:
             return False
@@ -195,7 +203,9 @@ class ContinuousUpdate:
         # connect and initialize
         self.connect()
 
+        # update the display
         self.update_stepsize_from_le_fs()
+        self.update_current_pos()
 
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
@@ -229,14 +239,21 @@ class ContinuousUpdate:
         self.le_step_size_fs.editingFinished.connect(self.update_stepsize_from_le_fs)
 
         # update move_to_pos (for both um and fs)
-        self.le_pos_um.editingFinished.connect(self.update_move_to_pos_le_um)
-        self.le_pos_fs.editingFinished.connect(self.update_move_to_pos_le_fs)
+        self.le_pos_um.editingFinished.connect(self.update_move_to_pos_from_le_um)
+        self.le_pos_fs.editingFinished.connect(self.update_move_to_pos_from_le_fs)
 
         # connect the set T0 button
         self.btn_setT0.clicked.connect(self.set_T0)
 
         # connect the home stage button
         self.btn_home_stage.clicked.connect(self.home_stage)
+
+        # connect the step left and step right buttons
+        self.btn_step_left.clicked.connect(self.step_left)
+        self.btn_step_right.clicked.connect(self.step_right)
+
+        # connect the move_to_pos button (can connect to move_to_pos_um or move_to_pos_fs)
+        self.btn_move_to_pos.clicked.connect(self.move_to_pos)
 
     @property
     def T0_um(self):
@@ -257,7 +274,7 @@ class ContinuousUpdate:
 
     @property
     def move_to_pos_um(self):
-        return self._move_to_pos_fs * 1e-9 * c_mks + self.T0_um
+        return self.move_to_pos_fs * 1e-9 * c_mks + self.T0_um
 
     @T0_um.setter
     def T0_um(self, value_um):
@@ -320,10 +337,10 @@ class ContinuousUpdate:
         self.le_step_size_fs.setText('%.3f' % self.step_size_fs)
 
     def update_move_to_pos_le_um(self):
-        self.le_pos_um.setText('%.3f' % self.move_to_pos_um)
+        self.le_pos_um.setText('%.5f' % self.move_to_pos_um)
 
     def update_move_to_pos_le_fs(self):
-        self.le_pos_fs.setText('%.3f' % self.move_to_pos_fs)
+        self.le_pos_fs.setText('%.5f' % self.move_to_pos_fs)
 
     def start_continuous_update(self):
         # create a runnable instance and connect the relevant signals and slots
@@ -354,13 +371,13 @@ class ContinuousUpdate:
     def step_left(self):
         exceed = self.motor_interface.value_exceeds_limits(-self.step_size_um)
         if not exceed:
-            self.motor_interface.move_by_um(self.step_size_um)
+            self.motor_interface.move_by_um(-self.step_size_um)
             self.update_current_pos()
         else:
             return
 
     def move_to_pos(self):
-        exceed = self.motor_interface.value_exceeds_limits(self.move_to_pos_um)
+        exceed = self.motor_interface.value_exceeds_limits(self.move_to_pos_um - self.motor_interface.pos_um)
         if not exceed:
             self.motor_interface.pos_um = self.move_to_pos_um
 
@@ -381,10 +398,16 @@ class ContinuousUpdate:
 
     def set_T0(self):
         # I think this ought to do it
-        self.T0_um = 0
+        self.T0_um = self.motor_interface.pos_um
+        self.move_to_pos_fs = 0
+        self.update_current_pos()
 
     def home_stage(self):
         self.motor_interface.motor.home_motor(blocking=False)
+
+        self.create_runnable('motor')
+        self.connect_runnable('motor')
+        pool.start(self.runnable_update_motor)
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
@@ -432,17 +455,14 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
 
     def run(self):
         # while stop is false, continuously get the spectrum
-        while True:
-            if not self._stop:
-                # get the spectrum
-                wavelengths, intensities = self.spectrometer.get_spectrum()
-                # emit the spectrum as a signal
-                self.progress.emit([wavelengths, intensities])
-                # I don't know how fast it does this, so I'm telling it to sleep for .05 seconds. If
-                # it turns out that it already takes ~.05s to get the spectrum then you can delete this
-                time.sleep(.05)
-            else:
-                return
+        while not self._stop:
+            # get the spectrum
+            wavelengths, intensities = self.spectrometer.get_spectrum()
+            # emit the spectrum as a signal
+            self.progress.emit([wavelengths, intensities])
+            # I don't know how fast it does this, so I'm telling it to sleep for .05 seconds. If
+            # it turns out that it already takes ~.05s to get the spectrum then you can delete this
+            time.sleep(.05)
 
 
 if __name__ == '__main__':
