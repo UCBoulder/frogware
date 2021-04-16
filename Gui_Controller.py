@@ -88,7 +88,7 @@ class MotorInterface:
         self.T0_um = 0  # T0 position of the motor in micron
 
         # don't let the stage come closer than this to the stage limits.
-        self._safety_buffer_mm = 1e-3 # 1um
+        self._safety_buffer_mm = 1e-3  # 1um
 
         self.error_window = ErrorWindow()
 
