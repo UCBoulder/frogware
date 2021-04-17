@@ -42,8 +42,9 @@ def raise_error(error_window, text):
 
 class MainWindow(qt.QMainWindow, Ui_MainWindow):
     """
-    This is the main GUI window. For better readability and ease of editing later on, I would like to
-    move as many widgets as possible into their own separate classes.
+    This is the main GUI window. For better readability and ease of editing
+    later on, I would like to move as many widgets as possible into their own
+    separate classes.
     """
 
     def __init__(self):
@@ -51,18 +52,26 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.show()
 
-        # I will eventually delete these, but I have them here for now for reference (or else I'll forget
-        # and have to remember what to write again)
-        # self.plot_cont_upd = plotf.PlotWindow(self.le_cont_upd_xmin, self.le_cont_upd_xmax, self.le_cont_upd_ymin,
-        #                                       self.le_cont_upd_ymax, self.gv_cont_upd_spec)
+        # I will eventually delete these, but I have them here for now for
+        # reference (or else I'll forget and have to remember what to write
+        # again)
+        # self.plot_cont_upd = plotf.PlotWindow(self.le_cont_upd_xmin,
+        #                                       self.le_cont_upd_xmax,
+        #                                       self.le_cont_upd_ymin,
+        #                                       self.le_cont_upd_ymax,
+        #                                       self.gv_cont_upd_spec)
         #
-        # self.plot_spectrogram = plotf.PlotWindow(self.le_spectrogram_xmin, self.le_spectrogram_xmax,
-        #                                          self.le_spectrogram_ymin, self.le_spectrogram_ymax,
+        # self.plot_spectrogram = plotf.PlotWindow(self.le_spectrogram_xmin,
+        #                                          self.le_spectrogram_xmax,
+        #                                          self.le_spectrogram_ymin,
+        #                                          self.le_spectrogram_ymax,
         #                                          self.gv_Spectrogram)
 
         self.connect_motor_spectrometer()
 
-        self.continuous_update_tab = ContinuousUpdate(self, self.motor_interface, self.spectrometer)
+        self.continuous_update_tab = ContinuousUpdate(self,
+                                                      self.motor_interface,
+                                                      self.spectrometer)
 
     def connect_motor_spectrometer(self):
         # should end up doing something like:
@@ -78,8 +87,9 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
 
 class MotorInterface:
-    """I was thinking to keep classes in utilities.py more bare bone, and focus on hardware
-    communication there. Here I will add more things I would like the Motor class to have."""
+    """I was thinking to keep classes in utilities.py more bare bone,
+    and focus on hardware communication there. Here I will add more things I
+    would like the Motor class to have. """
 
     def __init__(self, motor):
         motor: util.Motor
@@ -103,7 +113,8 @@ class MotorInterface:
 
     @pos_um.setter
     def pos_um(self, value_um):
-        # move the motor to the new position, assuming they give the motor position in mm
+        # move the motor to the new position, assuming they give the motor
+        # position in mm
         self.motor.position_mm = value_um * 1e-3
 
     @pos_fs.setter
@@ -132,9 +143,11 @@ class MotorInterface:
         min_limit_um = self.motor.min_pos_mm * 1e3
         buffer_um = self._safety_buffer_mm * 1e3
 
-        if (predicted_pos_um < min_limit_um + buffer_um) or (predicted_pos_um > max_limit_um - buffer_um):
+        if (predicted_pos_um < min_limit_um + buffer_um) or (
+                predicted_pos_um > max_limit_um - buffer_um):
             print("I raised an error!")
-            raise_error(self.error_window, "too close to stage limits (within 1um)")
+            raise_error(self.error_window,
+                        "too close to stage limits (within 1um)")
             return True
         else:
             return False
@@ -142,9 +155,9 @@ class MotorInterface:
 
 class ContinuousUpdate:
     """
-    This class interfaces the Spectrum Continuous Update tab with the main window.
-    It expects an instance
-    of the MainWindow, MotorInterface, and util.Spectrometer class in the init function.
+    This class interfaces the Spectrum Continuous Update tab with the main
+    window. It expects an instance of the MainWindow, MotorInterface,
+    and util.Spectrometer class in the init function.
     """
 
     def __init__(self, main_window, motor_interface, spectrometer):
@@ -174,8 +187,10 @@ class ContinuousUpdate:
         self.lcd_current_pos_um = self.main_window.lcd_cnt_update_current_pos_um
         self.lcd_current_pos_fs = self.main_window.lcd_cnt_update_current_pos_fs
         self.btn_setT0 = self.main_window.btn_set_T0
-        self.plot_window = plotf.PlotWindow(self.main_window.le_cont_upd_xmin, self.main_window.le_cont_upd_xmax,
-                                            self.main_window.le_cont_upd_ymin, self.main_window.le_cont_upd_ymax,
+        self.plot_window = plotf.PlotWindow(self.main_window.le_cont_upd_xmin,
+                                            self.main_window.le_cont_upd_xmax,
+                                            self.main_window.le_cont_upd_ymin,
+                                            self.main_window.le_cont_upd_ymax,
                                             self.main_window.gv_cont_upd_spec)
         self.actionStop = self.main_window.actionStop
 
@@ -212,9 +227,11 @@ class ContinuousUpdate:
     # re-initialized every time
     def create_runnable(self, string):
         if string == "spectrum":
-            self.runnable_update_spectrum = UpdateSpectrumRunnable(self.spectrometer)
+            self.runnable_update_spectrum = UpdateSpectrumRunnable(
+                self.spectrometer)
         elif string == "motor":
-            self.runnable_update_motor = UpdateMotorPositionRunnable(self.motor_interface)
+            self.runnable_update_motor = UpdateMotorPositionRunnable(
+                self.motor_interface)
 
     def connect_runnable(self, string):
         if string == 'spectrum':
@@ -227,20 +244,26 @@ class ContinuousUpdate:
             # continuously update motor position
             self.runnable_update_motor.progress.connect(self.update_current_pos)
 
-            # if the stop button is pushed, also stop the motor (in a controlled manner)
+            # if the stop button is pushed, also stop the motor (in a
+            # controlled manner)
             self.actionStop.triggered.connect(self.stop_motor)
 
     def connect(self):
-        # if the start continuous update button is pressed start the continuous update
+        # if the start continuous update button is pressed start the
+        # continuous update
         self.btn_start.clicked.connect(self.start_continuous_update)
 
         # update step size (for both um and fs)
-        self.le_step_size_um.editingFinished.connect(self.update_stepsize_from_le_um)
-        self.le_step_size_fs.editingFinished.connect(self.update_stepsize_from_le_fs)
+        self.le_step_size_um.editingFinished.connect(
+            self.update_stepsize_from_le_um)
+        self.le_step_size_fs.editingFinished.connect(
+            self.update_stepsize_from_le_fs)
 
         # update move_to_pos (for both um and fs)
-        self.le_pos_um.editingFinished.connect(self.update_move_to_pos_from_le_um)
-        self.le_pos_fs.editingFinished.connect(self.update_move_to_pos_from_le_fs)
+        self.le_pos_um.editingFinished.connect(
+            self.update_move_to_pos_from_le_um)
+        self.le_pos_fs.editingFinished.connect(
+            self.update_move_to_pos_from_le_fs)
 
         # connect the set T0 button
         self.btn_setT0.clicked.connect(self.set_T0)
@@ -252,7 +275,8 @@ class ContinuousUpdate:
         self.btn_step_left.clicked.connect(self.step_left)
         self.btn_step_right.clicked.connect(self.step_right)
 
-        # connect the move_to_pos button (can connect to move_to_pos_um or move_to_pos_fs)
+        # connect the move_to_pos button (can connect to move_to_pos_um or
+        # move_to_pos_fs)
         self.btn_move_to_pos.clicked.connect(self.move_to_pos)
 
     @property
@@ -377,11 +401,13 @@ class ContinuousUpdate:
             return
 
     def move_to_pos(self):
-        exceed = self.motor_interface.value_exceeds_limits(self.move_to_pos_um - self.motor_interface.pos_um)
+        exceed = self.motor_interface.value_exceeds_limits(
+            self.move_to_pos_um - self.motor_interface.pos_um)
         if not exceed:
             self.motor_interface.pos_um = self.move_to_pos_um
 
-            # create a runnable instance and connect the relevant signals and slots
+            # create a runnable instance and connect the relevant signals and
+            # slots
             self.create_runnable('motor')
             self.connect_runnable('motor')
 
@@ -436,11 +462,12 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
     def __init__(self, spectrometer):
         super().__init__()
 
-        # this class takes as input the spectrometer which it will continuously pull the
-        # the spectrum from
+        # this class takes as input the spectrometer which it will
+        # continuously pull the the spectrum from
         spectrometer: util.Spectrometer
         self.spectrometer = spectrometer
-        # also initialize a signal so you can transmit the spectrum to the main Continuous Update class
+        # also initialize a signal so you can transmit the spectrum to the
+        # main Continuous Update class
         self.signal = Signal()
         self.started = self.signal.started
         self.progress = self.signal.progress
@@ -460,8 +487,9 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
             wavelengths, intensities = self.spectrometer.get_spectrum()
             # emit the spectrum as a signal
             self.progress.emit([wavelengths, intensities])
-            # I don't know how fast it does this, so I'm telling it to sleep for .05 seconds. If
-            # it turns out that it already takes ~.05s to get the spectrum then you can delete this
+            # I don't know how fast it does this, so I'm telling it to sleep
+            # for .05 seconds. If it turns out that it already takes ~.05s to
+            # get the spectrum then you can delete this
             time.sleep(.05)
 
 

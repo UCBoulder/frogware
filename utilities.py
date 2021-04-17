@@ -7,8 +7,9 @@
 
 class Spectrometer:
     """
-    If you don't end up using an Ocean Optics spectrometer, you can incorporate your spectrometer
-    into the GUI by writing a class with the same attributes and methods as this one.
+    If you don't end up using an Ocean Optics spectrometer, you can
+    incorporate your spectrometer into the GUI by writing a class with the
+    same attributes and methods as this one.
     """
 
     def __init__(self, spectrometer):
@@ -35,8 +36,8 @@ class Spectrometer:
     @property
     def integration_time_micros_limit(self):
         """
-        The Spectrometer class already has a built in function to check that you don't set the
-        integration time beyond these limits
+        The Spectrometer class already has a built in function to check that
+        you don't set the integration time beyond these limits
         """
         return self.spectrometer.integration_time_micros_limits
 
@@ -50,7 +51,8 @@ class Motor:
         # motor: apt.Motor
         self.motor = motor
 
-        self._min_pos, self._max_pos, self._units, self._pitch = self.motor.get_stage_axis_info()
+        self._min_pos, self._max_pos, self._units, self._pitch = \
+            self.motor.get_stage_axis_info()
 
     @property
     def position_mm(self):
