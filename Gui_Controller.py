@@ -242,7 +242,8 @@ class ContinuousUpdate:
             self.actionStop.triggered.connect(self.stop_continuous_update)
         elif string == "motor":
             # continuously update motor position
-            self.runnable_update_motor.progress.connect(self.update_current_pos)
+            self.runnable_update_motor.progress.connect(
+                self.update_current_pos)
 
             # if the stop button is pushed, also stop the motor (in a
             # controlled manner)
@@ -491,6 +492,27 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
             # for .05 seconds. If it turns out that it already takes ~.05s to
             # get the spectrum then you can delete this
             time.sleep(.05)
+
+
+class CollectSpectrogram:
+    def __init__(self, main_window, motor_interface, spectrometer):
+        """
+        :param main_window:
+        :param motor_interface:
+        :param spectrometer:
+        """
+
+        main_window: MainWindow
+        motor_interface: MotorInterface
+        spectrometer: util.Spectrometer
+        self.main_window = main_window
+        self.spectrometer = spectrometer
+        self.motor_interface = motor_interface
+
+        # convenient access to relevant attributes
+
+    def connect(self):
+        pass
 
 
 if __name__ == '__main__':
