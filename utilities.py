@@ -73,7 +73,8 @@ class Motor:
 
     @position_mm.setter
     def position_mm(self, value):
-        # setting the motor position tells the motor to move in absolute mode and is non-blocking
+        # setting the motor position tells the motor to move in absolute mode
+        # and is non-blocking
         self.motor.position = value
 
     @property

@@ -13,7 +13,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1025, 666)
+        MainWindow.resize(1030, 667)
         MainWindow.setMinimumSize(QtCore.QSize(0, 25))
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -468,8 +468,10 @@ class Ui_MainWindow(object):
         self.le_tab2_step_size_fs.setText(_translate("MainWindow", "3"))
         self.label_13.setText(_translate("MainWindow", "start (um)"))
         self.label_14.setText(_translate("MainWindow", "start (fs)"))
+        self.le_start_fs.setText(_translate("MainWindow", "-100"))
         self.label_15.setText(_translate("MainWindow", "end(um)"))
         self.label_16.setText(_translate("MainWindow", "end(fs)"))
+        self.le_end_fs.setText(_translate("MainWindow", "100"))
         self.label_18.setText(_translate("MainWindow", "Current Position (um)"))
         self.label_20.setText(_translate("MainWindow", "Current Position (fs)"))
         self.groupBox1.setTitle(_translate("MainWindow", "Spectrogram"))

@@ -19,6 +19,7 @@ class Motor:
 
     @property
     def position(self):
+        # In the GUI, I assumed that they give the position in mm
         return self._position
 
     @position.setter

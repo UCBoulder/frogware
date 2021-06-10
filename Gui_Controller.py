@@ -1,6 +1,5 @@
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
-import PlotAndTableFunctions
 from Window import Ui_MainWindow
 import PlotAndTableFunctions as plotf
 import numpy as np
@@ -10,13 +9,11 @@ import time
 from Error import Ui_Form
 import PyQt5.QtGui as qtg
 import emulators as em
+from scipy.constants import c as c_mks
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
 pool = qtc.QThreadPool.globalInstance()
-
-# the speed of light
-c_mks = 299792458
 
 
 # Signal class to be used for Runnable
@@ -109,7 +106,7 @@ class MotorInterface:
     @property
     def pos_fs(self):
         # pos_fs is taken from pos_um and T0_um
-        return (self.pos_um - self.T0_um) * 1e9 / c_mks
+        return (self.pos_um - self.T0_um) * 2 * 1e9 / c_mks
 
     @pos_um.setter
     def pos_um(self, value_um):
@@ -121,11 +118,11 @@ class MotorInterface:
     def pos_fs(self, value_fs):
         # pos_fs is taken from pos_um, so just set pos_um
         # setting pos_um moves the motor
-        self.pos_um = value_fs * 1e-9 * c_mks + self.T0_um
+        self.pos_um = value_fs * 1e-9 * c_mks / 2 + self.T0_um
 
     def move_by_fs(self, value_fs):
         # obtain the distance to move in micron and meters
-        value_um = value_fs * 1e-9 * c_mks
+        value_um = value_fs * 1e-9 * c_mks / 2
         value_mm = value_um * 1e-3
 
         # move the motor to the new position and update the position in micron
@@ -180,12 +177,20 @@ class ContinuousUpdate:
         self.btn_step_right = self.main_window.btn_step_right
         self.le_step_size_um = self.main_window.le_step_size_um
         self.le_step_size_fs = self.main_window.le_step_size_fs
+        self.le_step_size_um_tab2 = self.main_window.le_tab2_step_size_um
+        self.le_step_size_fs_tab2 = self.main_window.le_tab2_step_size_fs
+        self.le_startpos_um = self.main_window.le_start_um
+        self.le_startpos_fs = self.main_window.le_start_fs
+        self.le_endpos_um = self.main_window.le_end_um
+        self.le_endpos_fs = self.main_window.le_end_fs
         self.btn_home_stage = self.main_window.btn_home_stage
         self.btn_move_to_pos = self.main_window.btn_move_to_pos
         self.le_pos_um = self.main_window.le_pos_um
         self.le_pos_fs = self.main_window.le_pos_fs
         self.lcd_current_pos_um = self.main_window.lcd_cnt_update_current_pos_um
         self.lcd_current_pos_fs = self.main_window.lcd_cnt_update_current_pos_fs
+        self.lcd_current_pos_um_tab2 = self.main_window.lcd_tab2_current_pos_um
+        self.lcd_current_pos_fs_tab2 = self.main_window.lcd_tab2_current_pos_fs
         self.btn_setT0 = self.main_window.btn_set_T0
         self.plot_window = plotf.PlotWindow(self.main_window.le_cont_upd_xmin,
                                             self.main_window.le_cont_upd_xmax,
@@ -198,9 +203,14 @@ class ContinuousUpdate:
         self.curve = plotf.create_curve()
         self.plot_window.plotwidget.addItem(self.curve)
 
-        # initialize the step size, 0 is arbitrary
+        # initialize the step size and position, 0 is arbitrary
         self._step_size_fs = 0
         self._move_to_pos_fs = 0
+        self._step_size_fs_spectrogram = 0
+
+        # initialize the start and end position, 0 is arbitrary
+        self._start_pos_fs = -100
+        self._end_pos_fs = 100
 
         # the inputs have to be floats
         self.le_pos_fs.setValidator(qtg.QDoubleValidator())
@@ -215,12 +225,21 @@ class ContinuousUpdate:
         self.lcd_current_pos_um.setSmallDecimalPoint(True)
         self.lcd_current_pos_um.setSegmentStyle(qt.QLCDNumber.Flat)
 
+        self.lcd_current_pos_fs_tab2.setSmallDecimalPoint(True)
+        self.lcd_current_pos_fs_tab2.setSegmentStyle(qt.QLCDNumber.Flat)
+        self.lcd_current_pos_um_tab2.setSmallDecimalPoint(True)
+        self.lcd_current_pos_um_tab2.setSegmentStyle(qt.QLCDNumber.Flat)
+
         # connect and initialize
         self.connect()
 
         # update the display
         self.update_stepsize_from_le_fs()
+        self.update_stepsize_spectrogram_from_le_fs()
         self.update_current_pos()
+
+        self.update_startpos_from_le_fs()
+        self.update_endpos_from_le_fs()
 
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
@@ -259,12 +278,26 @@ class ContinuousUpdate:
             self.update_stepsize_from_le_um)
         self.le_step_size_fs.editingFinished.connect(
             self.update_stepsize_from_le_fs)
+        self.le_step_size_um_tab2.editingFinished.connect(
+            self.update_stepsize_spectrogram_from_le_um)
+        self.le_step_size_fs_tab2.editingFinished.connect(
+            self.update_stepsize_spectrogram_from_le_fs)
 
         # update move_to_pos (for both um and fs)
         self.le_pos_um.editingFinished.connect(
             self.update_move_to_pos_from_le_um)
         self.le_pos_fs.editingFinished.connect(
             self.update_move_to_pos_from_le_fs)
+
+        # update start and end pos (for both um and fs)
+        self.le_startpos_fs.editingFinished.connect(
+            self.update_startpos_from_le_fs)
+        self.le_startpos_um.editingFinished.connect(
+            self.update_startpos_from_le_um)
+        self.le_endpos_fs.editingFinished.connect(
+            self.update_endpos_from_le_fs)
+        self.le_endpos_um.editingFinished.connect(
+            self.update_endpos_from_le_um)
 
         # connect the set T0 button
         self.btn_setT0.clicked.connect(self.set_T0)
@@ -287,11 +320,20 @@ class ContinuousUpdate:
     @property
     def step_size_um(self):
         # set the step size in micron based off the step size in fs
-        return self._step_size_fs * 1e-9 * c_mks
+        return self._step_size_fs * 1e-9 * c_mks / 2
 
     @property
     def step_size_fs(self):
         return self._step_size_fs
+
+    @property
+    def step_size_um_spectrogram(self):
+        # set the step size in micron based off the step size in fs
+        return self._step_size_fs_spectrogram * 1e-9 * c_mks / 2
+
+    @property
+    def step_size_fs_spectrogram(self):
+        return self._step_size_fs_spectrogram
 
     @property
     def move_to_pos_fs(self):
@@ -299,7 +341,7 @@ class ContinuousUpdate:
 
     @property
     def move_to_pos_um(self):
-        return self.move_to_pos_fs * 1e-9 * c_mks + self.T0_um
+        return (self.move_to_pos_fs * 1e-9 * c_mks / 2) + self.T0_um
 
     @T0_um.setter
     def T0_um(self, value_um):
@@ -315,7 +357,7 @@ class ContinuousUpdate:
 
     @move_to_pos_um.setter
     def move_to_pos_um(self, value_um):
-        value_fs = (value_um - self.T0_um) * 1e9 / c_mks
+        value_fs = (value_um - self.T0_um) * 2 * 1e9 / c_mks
         self.move_to_pos_fs = value_fs
 
         # update the line edits
@@ -325,7 +367,7 @@ class ContinuousUpdate:
     @step_size_um.setter
     def step_size_um(self, value_um):
         # step_size_um is based off step_size_fs so just update step_size_fs
-        self._step_size_fs = value_um * 1e9 / c_mks
+        self._step_size_fs = value_um * 2 * 1e9 / c_mks
 
         # update the line edits
         self.update_stepsize_le_um()
@@ -339,6 +381,79 @@ class ContinuousUpdate:
         self.update_stepsize_le_um()
         self.update_stepsize_le_fs()
 
+    @step_size_um_spectrogram.setter
+    def step_size_um_spectrogram(self, value_um):
+        # step_size_um is based off step_size_fs so just update step_size_fs
+        self._step_size_fs_spectrogram = value_um * 2 * 1e9 / c_mks
+
+        # update the line edits
+        self.update_stepsize_spectrogram_le_fs()
+        self.update_stepsize_spectrogram_le_um()
+
+    @step_size_fs_spectrogram.setter
+    def step_size_fs_spectrogram(self, value_fs):
+        self._step_size_fs_spectrogram = value_fs
+
+        # update the line edits
+        self.update_stepsize_spectrogram_le_um()
+        self.update_stepsize_spectrogram_le_fs()
+
+    @property
+    def start_pos_fs(self):
+        return self._start_pos_fs
+
+    @start_pos_fs.setter
+    def start_pos_fs(self, value):
+        self._start_pos_fs = value
+
+        # update the line edits
+        self.update_startpos_le_fs()
+        self.update_startpos_le_um()
+
+    @property
+    def start_pos_um(self):
+        # I'm making it so that the start position in micron is defined
+        # based off the start position in time
+        return (c_mks * self.start_pos_fs * 1e-9 / 2) + self.T0_um
+
+    @start_pos_um.setter
+    def start_pos_um(self, value_um):
+        # start_pos_um is taken from start_pos_fs
+        # so just set start_pos_fs
+        self.start_pos_fs = (value_um - self.T0_um) * 2 * 1e9 / c_mks
+
+        # update the line edits
+        self.update_startpos_le_fs()
+        self.update_startpos_le_um()
+
+    @property
+    def end_pos_fs(self):
+        return self._end_pos_fs
+
+    @end_pos_fs.setter
+    def end_pos_fs(self, value):
+        self._end_pos_fs = value
+
+        # update the line edits
+        self.update_endpos_le_fs()
+        self.update_endpos_le_um()
+
+    @property
+    def end_pos_um(self):
+        # I'm making it so that the start position in micron is defined
+        # based off the start position in time
+        return (c_mks * self.end_pos_fs * 1e-9 / 2) + self.T0_um
+
+    @end_pos_um.setter
+    def end_pos_um(self, value_um):
+        # end_pos_um is taken from end_pos_fs
+        # so just set end_pos_fs
+        self.end_pos_fs = (value_um - self.T0_um) * 2 * 1e9 / c_mks
+
+        # update the line edits
+        self.update_endpos_le_fs()
+        self.update_endpos_le_um()
+
     def update_stepsize_from_le_um(self):
         step_size_um = float(self.le_step_size_um.text())
         self.step_size_um = step_size_um
@@ -346,6 +461,30 @@ class ContinuousUpdate:
     def update_stepsize_from_le_fs(self):
         step_size_fs = float(self.le_step_size_fs.text())
         self.step_size_fs = step_size_fs
+
+    def update_stepsize_spectrogram_from_le_um(self):
+        step_size_um = float(self.le_step_size_um_tab2.text())
+        self.step_size_um_spectrogram = step_size_um
+
+    def update_stepsize_spectrogram_from_le_fs(self):
+        step_size_fs = float(self.le_step_size_fs_tab2.text())
+        self.step_size_fs_spectrogram = step_size_fs
+
+    def update_startpos_from_le_um(self):
+        startpos_um = float(self.le_startpos_um.text())
+        self.start_pos_um = startpos_um
+
+    def update_startpos_from_le_fs(self):
+        startpos_fs = float(self.le_startpos_fs.text())
+        self.start_pos_fs = startpos_fs
+
+    def update_endpos_from_le_um(self):
+        endpos_um = float(self.le_endpos_um.text())
+        self.end_pos_um = endpos_um
+
+    def update_endpos_from_le_fs(self):
+        endpos_fs = float(self.le_endpos_fs.text())
+        self.end_pos_fs = endpos_fs
 
     def update_move_to_pos_from_le_um(self):
         move_to_pos_um = float(self.le_pos_um.text())
@@ -360,6 +499,26 @@ class ContinuousUpdate:
 
     def update_stepsize_le_fs(self):
         self.le_step_size_fs.setText('%.3f' % self.step_size_fs)
+
+    def update_stepsize_spectrogram_le_um(self):
+        self.le_step_size_um_tab2.setText(
+            '%.3f' % self.step_size_um_spectrogram)
+
+    def update_stepsize_spectrogram_le_fs(self):
+        self.le_step_size_fs_tab2.setText(
+            '%.3f' % self.step_size_fs_spectrogram)
+
+    def update_startpos_le_um(self):
+        self.le_startpos_um.setText('%.3f' % self.start_pos_um)
+
+    def update_startpos_le_fs(self):
+        self.le_startpos_fs.setText('%.3f' % self.start_pos_fs)
+
+    def update_endpos_le_um(self):
+        self.le_endpos_um.setText('%.3f' % self.end_pos_um)
+
+    def update_endpos_le_fs(self):
+        self.le_endpos_fs.setText('%.3f' % self.end_pos_fs)
 
     def update_move_to_pos_le_um(self):
         self.le_pos_um.setText('%.5f' % self.move_to_pos_um)
@@ -420,6 +579,11 @@ class ContinuousUpdate:
         self.lcd_current_pos_um.display('%.3f' % self.motor_interface.pos_um)
         self.lcd_current_pos_fs.display('%.3f' % self.motor_interface.pos_fs)
 
+        self.lcd_current_pos_um_tab2.display(
+            '%.3f' % self.motor_interface.pos_um)
+        self.lcd_current_pos_fs_tab2.display(
+            '%.3f' % self.motor_interface.pos_fs)
+
     def stop_motor(self):
         self.runnable_update_motor.stop()
 
@@ -429,12 +593,19 @@ class ContinuousUpdate:
         self.move_to_pos_fs = 0
         self.update_current_pos()
 
+        self.update_startpos_from_le_fs()
+        self.update_endpos_from_le_fs()
+
     def home_stage(self):
         self.motor_interface.motor.home_motor(blocking=False)
 
         self.create_runnable('motor')
         self.connect_runnable('motor')
         pool.start(self.runnable_update_motor)
+
+    # TODO I think this is the last thing remaining for you to do
+    def collect_spectrogram(self):
+        pass
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
@@ -492,27 +663,6 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
             # for .05 seconds. If it turns out that it already takes ~.05s to
             # get the spectrum then you can delete this
             time.sleep(.05)
-
-
-class CollectSpectrogram:
-    def __init__(self, main_window, motor_interface, spectrometer):
-        """
-        :param main_window:
-        :param motor_interface:
-        :param spectrometer:
-        """
-
-        main_window: MainWindow
-        motor_interface: MotorInterface
-        spectrometer: util.Spectrometer
-        self.main_window = main_window
-        self.spectrometer = spectrometer
-        self.motor_interface = motor_interface
-
-        # convenient access to relevant attributes
-
-    def connect(self):
-        pass
 
 
 if __name__ == '__main__':

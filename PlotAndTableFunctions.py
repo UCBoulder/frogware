@@ -150,9 +150,11 @@ def get_colormap(string):
     return pos, lut
 
 
-# The following should also be able to be passed in as an argument to the init function of PlotWindow (in place of
-# PlotWidget) However, note the format_to_current_viewBox method will format it to something really big I don't think
-# I'll use that method but if you do you should change plotwidget.viewRect() to plotwidget.PlotItem.viewRect()
+# The following should also be able to be passed in as an argument to the
+# init function of PlotWindow (in place of PlotWidget) However, note the
+# format_to_current_viewBox method will format it to something really big. I
+# don't think I'll use that method but if you do you should change
+# plotwidget.viewRect() to plotwidget.PlotItem.viewRect()
 class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -205,7 +207,8 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
         self.PlotItem.setYRange(self.ymin, ymax)
         self.ymax = ymax
 
-    def plot_image(self, x=np.array([0, 1]), y=np.array([0, 1]), data=face(True), cmap='cividis', format='xy'):
+    def plot_image(self, x=np.array([0, 1]), y=np.array([0, 1]),
+                   data=face(True), cmap='cividis', format='xy'):
         _, lut = get_colormap(cmap)
         self.ii.setImage(data)
         self.ii.setLookupTable(lut)
