@@ -4,6 +4,7 @@ when I first connect to hardware."""
 import numpy as np
 import time
 import PyQt5.QtCore as qtc
+import scipy.constants as sc
 
 
 pool = qtc.QThreadPool.globalInstance()
@@ -54,17 +55,18 @@ class MotorRunnable(qtc.QRunnable):
         super().__init__()
 
     def run(self):
-        dx = 1e-4
+        dx = sc.c * 1e-12 / 2
         if self.motor.position < self.pos_mm:
             self.motor.is_in_motion = True
 
             while self.motor.position < self.pos_mm:
                 if self.motor._stop:
                     self.motor._stop = False
+                    self.motor.is_in_motion = False
                     return
 
                 self.motor._position += dx
-                time.sleep(.005)
+                time.sleep(.001)
 
             self.motor.is_in_motion = False
 
@@ -74,10 +76,11 @@ class MotorRunnable(qtc.QRunnable):
             while self.motor.position > self.pos_mm:
                 if self.motor._stop:
                     self.motor._stop = False
+                    self.motor.is_in_motion = False
                     return
 
                 self.motor._position -= dx
-                time.sleep(.005)
+                time.sleep(.001)
 
             self.motor.is_in_motion = False
 

@@ -241,6 +241,12 @@ class ContinuousUpdate:
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
 
+        # do runnables already exist
+        self.cont_update_runnable_exists = False
+        self.motor_runnable_exists = False
+
+        self.error_window = ErrorWindow()
+
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
     # re-initialized every time
@@ -267,6 +273,11 @@ class ContinuousUpdate:
             # if the stop button is pushed, also stop the motor (in a
             # controlled manner)
             self.actionStop.triggered.connect(self.stop_motor)
+
+            # signal when the motor is finished moving
+            # when finished moving, update the current position one more time
+            self.runnable_update_motor.finished.connect(self.motor_finished)
+            self.runnable_update_motor.finished.connect(self.update_current_pos)
 
     def connect(self):
         # if the start continuous update button is pressed start the
@@ -527,6 +538,15 @@ class ContinuousUpdate:
         self.le_pos_fs.setText('%.5f' % self.move_to_pos_fs)
 
     def start_continuous_update(self):
+        # I would like to have the start_continuous_update button
+        # work like a toggle. So, if the runnable already exists, then
+        # just stop the process and return.
+        if self.cont_update_runnable_exists:
+            self.stop_continuous_update()
+            return
+
+        self.cont_update_runnable_exists = True
+
         # create a runnable instance and connect the relevant signals and slots
         self.create_runnable('spectrum')
         self.connect_runnable('spectrum')
@@ -537,6 +557,7 @@ class ContinuousUpdate:
     def stop_continuous_update(self):
         # stop the continuous update
         self.runnable_update_spectrum.stop()
+        self.cont_update_runnable_exists = False
 
     def plot_update(self, X):
         # the signal should emit wavelengths and intensities
@@ -561,9 +582,20 @@ class ContinuousUpdate:
             return
 
     def move_to_pos(self):
+        # I would like to have the move_to_pos button
+        # work like a toggle. So, if the runnable already exists, then
+        # just stop the process and return.
+        if self.motor_runnable_exists:
+            # raise_error(self.error_window, "stop the motor first!")
+            # return
+            self.stop_motor()
+            return
+
         exceed = self.motor_interface.value_exceeds_limits(
             self.move_to_pos_um - self.motor_interface.pos_um)
         if not exceed:
+            self.motor_runnable_exists = True
+
             self.motor_interface.pos_um = self.move_to_pos_um
 
             # create a runnable instance and connect the relevant signals and
@@ -586,6 +618,10 @@ class ContinuousUpdate:
 
     def stop_motor(self):
         self.runnable_update_motor.stop()
+        self.motor_runnable_exists = False
+
+    def motor_finished(self):
+        self.motor_runnable_exists = False
 
     def set_T0(self):
         # I think this ought to do it
@@ -597,6 +633,17 @@ class ContinuousUpdate:
         self.update_endpos_from_le_fs()
 
     def home_stage(self):
+        # I would like to have the home_stage button
+        # work like a toggle. So, if the runnable already exists, then
+        # just stop the process and return.
+        if self.motor_runnable_exists:
+            # raise_error(self.error_window, "stop the motor first!")
+            # return
+            self.stop_motor()
+            return
+
+        self.motor_runnable_exists = True
+
         self.motor_interface.motor.home_motor(blocking=False)
 
         self.create_runnable('motor')
@@ -625,7 +672,9 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
     def run(self):
         while self.motor_interface.motor.is_in_motion:
             self.progress.emit(None)
-            time.sleep(.05)
+            time.sleep(.001)
+
+        self.finished.emit(None)
 
 
 class UpdateSpectrumRunnable(qtc.QRunnable):
