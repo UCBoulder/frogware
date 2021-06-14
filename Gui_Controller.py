@@ -547,6 +547,8 @@ class ContinuousUpdate:
 
         self.cont_update_runnable_exists = True
 
+        self.btn_start.setText("Stop \n Continuous Update")
+
         # create a runnable instance and connect the relevant signals and slots
         self.create_runnable('spectrum')
         self.connect_runnable('spectrum')
@@ -558,6 +560,8 @@ class ContinuousUpdate:
         # stop the continuous update
         self.runnable_update_spectrum.stop()
         self.cont_update_runnable_exists = False
+
+        self.btn_start.setText("Start \n Continuous Update")
 
     def plot_update(self, X):
         # the signal should emit wavelengths and intensities
@@ -591,6 +595,8 @@ class ContinuousUpdate:
             self.stop_motor()
             return
 
+        self.btn_move_to_pos.setText("stop motion")
+
         exceed = self.motor_interface.value_exceeds_limits(
             self.move_to_pos_um - self.motor_interface.pos_um)
         if not exceed:
@@ -620,8 +626,12 @@ class ContinuousUpdate:
         self.runnable_update_motor.stop()
         self.motor_runnable_exists = False
 
+        self.btn_move_to_pos.setText("move to position")
+
     def motor_finished(self):
         self.motor_runnable_exists = False
+        self.btn_move_to_pos.setText("move to position")
+
 
     def set_T0(self):
         # I think this ought to do it
