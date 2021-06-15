@@ -160,7 +160,7 @@ class MotorInterface:
 
         if (predicted_pos_um < min_limit_um + buffer_um) or (
                 predicted_pos_um > max_limit_um - buffer_um):
-            print("I raised an error!")
+            # print("I raised an error!")
             raise_error(self.error_window,
                         "too close to stage limits (within 1um)")
             return True
@@ -263,6 +263,7 @@ class ContinuousUpdate:
         # do runnables already exist
         self.cont_update_runnable_exists = False
         self.motor_runnable_exists = False
+        self.spectrogram_runnable_exists = False
 
         # Error Popup Window
         self.error_window = ErrorWindow()
@@ -285,6 +286,10 @@ class ContinuousUpdate:
         elif string == "motor":
             self.runnable_update_motor = UpdateMotorPositionRunnable(
                 self.motor_interface)
+        elif string == "spectrogram":
+            self.runnable_spectrogram = CollectSpectrogramRunnable(
+                self.motor_interface, self.spectrometer, self.end_pos_um,
+                self.step_size_um_spectrogram)
 
     def connect_runnable(self, string):
         if string == 'spectrum':
@@ -306,6 +311,16 @@ class ContinuousUpdate:
             # when finished moving, update the current position one more time
             self.runnable_update_motor.finished.connect(self.motor_finished)
             self.runnable_update_motor.finished.connect(self.update_current_pos)
+
+        elif string == "spectrogram":
+            # spectrogram updates current position
+            self.runnable_spectrogram.progress.connect(self.update_current_pos)
+
+            # spectrogram updates the spectrum plot
+            self.runnable_spectrogram.progress.connect(self.plot_update)
+
+            # the stop button stops the spectrogram collection
+            self.actionStop.triggered.connect(self.stop_spectrogram_collection)
 
     def connect(self):
         # if the start continuous update button is pressed start the
@@ -574,6 +589,16 @@ class ContinuousUpdate:
         # just stop the process and return.
         if self.cont_update_runnable_exists:
             self.stop_continuous_update()
+
+            # if the spectrogram collection is running stop that too
+            if self.spectrogram_runnable_exists:
+                self.stop_spectrogram_collection()
+                return
+            return
+
+        # if the spectrogram collection is running then stop it
+        if self.spectrogram_runnable_exists:
+            self.stop_spectrogram_collection()
             return
 
         self.cont_update_runnable_exists = True
@@ -596,7 +621,7 @@ class ContinuousUpdate:
 
     def plot_update(self, X):
         # the signal should emit wavelengths and intensities
-        wavelengths, intensities = X
+        [wavelengths, intensities, *_] = X
         # set the data to the new spectrum
         self.curve.setData(x=wavelengths, y=intensities)
 
@@ -604,6 +629,9 @@ class ContinuousUpdate:
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists:
             self.stop_motor()
+            if self.spectrogram_runnable_exists:
+                self.stop_spectrogram_collection()
+                return
             return
 
         # set a limit on the step size to be 50 fs
@@ -622,6 +650,10 @@ class ContinuousUpdate:
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists:
             self.stop_motor()
+
+            if self.spectrogram_runnable_exists:
+                self.stop_spectrogram_collection()
+                return
             return
 
         # set a limit on the step size to be 50 fs
@@ -645,6 +677,10 @@ class ContinuousUpdate:
             # raise_error(self.error_window, "stop the motor first!")
             # return
             self.stop_motor()
+
+            if self.spectrogram_runnable_exists:
+                self.stop_spectrogram_collection()
+                return
             return
 
         if not target_um:
@@ -661,13 +697,14 @@ class ContinuousUpdate:
             # create a runnable instance and connect the relevant signals and
             # slots
             self.create_runnable('motor')
+            # print("created runnable motor")
             self.connect_runnable('motor')
 
             pool.start(self.runnable_update_motor)
         else:
-            return
+            raise RuntimeError("value exceeds motor limits")
 
-    def update_current_pos(self):
+    def update_current_pos(self, *args):
         self.lcd_current_pos_um.display('%.3f' % self.motor_interface.pos_um)
         self.lcd_current_pos_fs.display('%.3f' % self.motor_interface.pos_fs)
 
@@ -704,6 +741,10 @@ class ContinuousUpdate:
             # raise_error(self.error_window, "stop the motor first!")
             # return
             self.stop_motor()
+
+            if self.spectrogram_runnable_exists:
+                self.stop_spectrogram_collection()
+                return
             return
 
         self.motor_runnable_exists = True
@@ -724,13 +765,41 @@ class ContinuousUpdate:
         from the stage to the spectrometer.
         """
 
+        if self.spectrogram_runnable_exists:
+            self.stop_spectrogram_collection()
+            return
+
+        # stop the continuous spectrum update in the first tab
+        if self.cont_update_runnable_exists:
+            self.stop_continuous_update()
+
         # I'm assuming the only thing that can take a while is moving to the
         # start position.
         def move_to_start():
-            self.move_to_pos(self.start_pos_um)
+            try:
+                self.move_to_pos(self.start_pos_um)
+            except:
+                return
 
-        self.move_to_pos(self.start_pos_um - self.backlash)
+            self.runnable_update_motor.finished.connect(
+                continue_spectrogram_collection)
+
+        def continue_spectrogram_collection():
+            self.spectrogram_runnable_exists = True
+            self.create_runnable('spectrogram')
+            self.connect_runnable('spectrogram')
+            pool.start(self.runnable_spectrogram)
+
+        try:
+            self.move_to_pos(self.start_pos_um - self.backlash)
+        except:
+            return
+
         self.runnable_update_motor.finished.connect(move_to_start)
+
+    def stop_spectrogram_collection(self):
+        self.runnable_spectrogram.stop()
+        self.spectrogram_runnable_exists = False
 
 
 class CollectSpectrogramRunnable(qtc.QRunnable):
@@ -765,17 +834,16 @@ class CollectSpectrogramRunnable(qtc.QRunnable):
             # acquire spectrum
             wavelengths, intensities = self.spectrometer.get_spectrum()
 
-            # emit current position in time, and the spectrum (wavelengths,
-            # spectrum)
-            self.progress.emit(self.motor_interface.pos_fs, wavelengths,
-                               intensities)
+            # emit spectrum (wavelengths, spectrum) and current position in time
+            self.progress.emit([wavelengths, intensities,
+                                self.motor_interface.pos_fs])
 
             # step the motor
             self.motor_interface.move_by_um(self.step_um)
 
             # TODO right now this is just so the GUI doesn't freeze up,
             #  you should remember to remove this for the actual program
-            time.sleep(.001)
+            time.sleep(.1)
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
