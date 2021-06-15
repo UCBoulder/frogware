@@ -1,3 +1,4 @@
+import threading
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
 from Window import Ui_MainWindow
@@ -16,6 +17,22 @@ from scipy.constants import c as c_mks
 pool = qtc.QThreadPool.globalInstance()
 
 
+def dist_um_to_T_fs(value_um):
+    """
+    :param value_um: delta x in micron
+    :return value_fs: delta t in femtosecond
+    """
+    return (2 * value_um / c_mks) * 1e9
+
+
+def T_fs_to_dist_um(value_fs):
+    """
+    :param value_fs: delta t in femtosecond
+    :return value_um: delta x in micron
+    """
+    return (c_mks * value_fs / 2) * 1e-9
+
+
 # Signal class to be used for Runnable
 class Signal(qtc.QObject):
     started = qtc.pyqtSignal(object)
@@ -23,6 +40,7 @@ class Signal(qtc.QObject):
     finished = qtc.pyqtSignal(object)
 
 
+# Popup error window
 class ErrorWindow(qt.QWidget, Ui_Form):
     def __init__(self):
         super().__init__()
@@ -106,7 +124,7 @@ class MotorInterface:
     @property
     def pos_fs(self):
         # pos_fs is taken from pos_um and T0_um
-        return (self.pos_um - self.T0_um) * 2 * 1e9 / c_mks
+        return dist_um_to_T_fs(self.pos_um - self.T0_um)
 
     @pos_um.setter
     def pos_um(self, value_um):
@@ -118,11 +136,11 @@ class MotorInterface:
     def pos_fs(self, value_fs):
         # pos_fs is taken from pos_um, so just set pos_um
         # setting pos_um moves the motor
-        self.pos_um = value_fs * 1e-9 * c_mks / 2 + self.T0_um
+        self.pos_um = T_fs_to_dist_um(value_fs) + self.T0_um
 
     def move_by_fs(self, value_fs):
         # obtain the distance to move in micron and meters
-        value_um = value_fs * 1e-9 * c_mks / 2
+        value_um = T_fs_to_dist_um(value_fs)
         value_mm = value_um * 1e-3
 
         # move the motor to the new position and update the position in micron
@@ -175,6 +193,7 @@ class ContinuousUpdate:
         self.btn_start = self.main_window.btn_start_cnt_update
         self.btn_step_left = self.main_window.btn_step_left
         self.btn_step_right = self.main_window.btn_step_right
+        self.btn_collect_spectrogram = self.main_window.btn_collect_spectrogram
         self.le_step_size_um = self.main_window.le_step_size_um
         self.le_step_size_fs = self.main_window.le_step_size_fs
         self.le_step_size_um_tab2 = self.main_window.le_tab2_step_size_um
@@ -245,7 +264,13 @@ class ContinuousUpdate:
         self.cont_update_runnable_exists = False
         self.motor_runnable_exists = False
 
+        # Error Popup Window
         self.error_window = ErrorWindow()
+
+        # backlash distance: 3 micon
+        # I believe it's rated to be <3 micron, so I think this should do it
+        # maybe it's not needed at all...
+        self.backlash = 3.0
 
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
@@ -324,6 +349,9 @@ class ContinuousUpdate:
         # move_to_pos_fs)
         self.btn_move_to_pos.clicked.connect(self.move_to_pos)
 
+        # connect the collect spectrogram button
+        self.btn_collect_spectrogram.clicked.connect(self.collect_spectrogram)
+
     @property
     def T0_um(self):
         return self.motor_interface.T0_um
@@ -331,7 +359,7 @@ class ContinuousUpdate:
     @property
     def step_size_um(self):
         # set the step size in micron based off the step size in fs
-        return self._step_size_fs * 1e-9 * c_mks / 2
+        return T_fs_to_dist_um(self._step_size_fs)
 
     @property
     def step_size_fs(self):
@@ -340,7 +368,7 @@ class ContinuousUpdate:
     @property
     def step_size_um_spectrogram(self):
         # set the step size in micron based off the step size in fs
-        return self._step_size_fs_spectrogram * 1e-9 * c_mks / 2
+        return T_fs_to_dist_um(self._step_size_fs_spectrogram)
 
     @property
     def step_size_fs_spectrogram(self):
@@ -352,7 +380,7 @@ class ContinuousUpdate:
 
     @property
     def move_to_pos_um(self):
-        return (self.move_to_pos_fs * 1e-9 * c_mks / 2) + self.T0_um
+        return T_fs_to_dist_um(self.move_to_pos_fs) + self.T0_um
 
     @T0_um.setter
     def T0_um(self, value_um):
@@ -368,7 +396,7 @@ class ContinuousUpdate:
 
     @move_to_pos_um.setter
     def move_to_pos_um(self, value_um):
-        value_fs = (value_um - self.T0_um) * 2 * 1e9 / c_mks
+        value_fs = dist_um_to_T_fs(value_um - self.T0_um)
         self.move_to_pos_fs = value_fs
 
         # update the line edits
@@ -378,7 +406,7 @@ class ContinuousUpdate:
     @step_size_um.setter
     def step_size_um(self, value_um):
         # step_size_um is based off step_size_fs so just update step_size_fs
-        self._step_size_fs = value_um * 2 * 1e9 / c_mks
+        self._step_size_fs = dist_um_to_T_fs(value_um)
 
         # update the line edits
         self.update_stepsize_le_um()
@@ -395,7 +423,7 @@ class ContinuousUpdate:
     @step_size_um_spectrogram.setter
     def step_size_um_spectrogram(self, value_um):
         # step_size_um is based off step_size_fs so just update step_size_fs
-        self._step_size_fs_spectrogram = value_um * 2 * 1e9 / c_mks
+        self._step_size_fs_spectrogram = dist_um_to_T_fs(value_um)
 
         # update the line edits
         self.update_stepsize_spectrogram_le_fs()
@@ -425,13 +453,13 @@ class ContinuousUpdate:
     def start_pos_um(self):
         # I'm making it so that the start position in micron is defined
         # based off the start position in time
-        return (c_mks * self.start_pos_fs * 1e-9 / 2) + self.T0_um
+        return T_fs_to_dist_um(self.start_pos_fs) + self.T0_um
 
     @start_pos_um.setter
     def start_pos_um(self, value_um):
         # start_pos_um is taken from start_pos_fs
         # so just set start_pos_fs
-        self.start_pos_fs = (value_um - self.T0_um) * 2 * 1e9 / c_mks
+        self.start_pos_fs = dist_um_to_T_fs(value_um - self.T0_um)
 
         # update the line edits
         self.update_startpos_le_fs()
@@ -453,13 +481,13 @@ class ContinuousUpdate:
     def end_pos_um(self):
         # I'm making it so that the start position in micron is defined
         # based off the start position in time
-        return (c_mks * self.end_pos_fs * 1e-9 / 2) + self.T0_um
+        return T_fs_to_dist_um(self.end_pos_fs) + self.T0_um
 
     @end_pos_um.setter
     def end_pos_um(self, value_um):
         # end_pos_um is taken from end_pos_fs
         # so just set end_pos_fs
-        self.end_pos_fs = (value_um - self.T0_um) * 2 * 1e9 / c_mks
+        self.end_pos_fs = dist_um_to_T_fs(value_um - self.T0_um)
 
         # update the line edits
         self.update_endpos_le_fs()
@@ -570,6 +598,11 @@ class ContinuousUpdate:
         self.curve.setData(x=wavelengths, y=intensities)
 
     def step_right(self):
+        # if motor is currently moving, just stop the motor.
+        if self.motor_runnable_exists:
+            self.stop_motor()
+            return
+
         exceed = self.motor_interface.value_exceeds_limits(self.step_size_um)
         if not exceed:
             self.motor_interface.move_by_um(self.step_size_um)
@@ -578,6 +611,11 @@ class ContinuousUpdate:
             return
 
     def step_left(self):
+        # if motor is currently moving, just stop the motor.
+        if self.motor_runnable_exists:
+            self.stop_motor()
+            return
+
         exceed = self.motor_interface.value_exceeds_limits(-self.step_size_um)
         if not exceed:
             self.motor_interface.move_by_um(-self.step_size_um)
@@ -585,7 +623,8 @@ class ContinuousUpdate:
         else:
             return
 
-    def move_to_pos(self):
+    def move_to_pos(self, target_um=False):
+
         # I would like to have the move_to_pos button
         # work like a toggle. So, if the runnable already exists, then
         # just stop the process and return.
@@ -595,14 +634,16 @@ class ContinuousUpdate:
             self.stop_motor()
             return
 
-        self.btn_move_to_pos.setText("stop motion")
+        if not target_um:
+            target_um = self.move_to_pos_um
 
         exceed = self.motor_interface.value_exceeds_limits(
-            self.move_to_pos_um - self.motor_interface.pos_um)
+            target_um - self.motor_interface.pos_um)
         if not exceed:
             self.motor_runnable_exists = True
+            self.btn_move_to_pos.setText("stop motion")
 
-            self.motor_interface.pos_um = self.move_to_pos_um
+            self.motor_interface.pos_um = target_um
 
             # create a runnable instance and connect the relevant signals and
             # slots
@@ -631,7 +672,7 @@ class ContinuousUpdate:
     def motor_finished(self):
         self.motor_runnable_exists = False
         self.btn_move_to_pos.setText("move to position")
-
+        # print("motor finished moving!")
 
     def set_T0(self):
         # I think this ought to do it
@@ -662,7 +703,51 @@ class ContinuousUpdate:
 
     # TODO I think this is the last thing remaining for you to do
     def collect_spectrogram(self):
-        pass
+        """
+        I've spent some time thinking about this, and I think I'll just do
+        the move stop method for now. Ideally in the future it would
+        be good to implement continuous scanning, and sync the stage motion
+        with the spectrometer's data acquisition via a trigger sent
+        from the stage to the spectrometer.
+        """
+
+        def move_to_start():
+            self.move_to_pos(self.start_pos_um)
+
+        self.move_to_pos(self.start_pos_um - self.backlash)
+        self.runnable_update_motor.finished.connect(move_to_start)
+
+
+# class CollectSpectrogramRunnable(qtc.QRunnable):
+#     def __init__(self, motor_interface, spectrometer, end_um, step_um):
+#         super().__init__()
+#
+#         motor_interface: MotorInterface
+#         spectrometer: util.Spectrometer
+#         self.motor_interface = motor_interface
+#         self.spectrometer = spectrometer
+#         self.signal = Signal()
+#         self.started = self.signal.started
+#         self.progress = self.signal.progress
+#         self.finished = self.signal.finished
+#
+#         self.end_um = end_um
+#         self.step_um = step_um
+#
+#     def stop(self):
+#         self.motor_interface.motor.stop_motor()
+#
+#     def run(self):
+#         while self.motor_interface.pos_um < self.end_um:
+#             wavelengths, intensities = self.spectrometer.get_spectrum()
+#             self.progress.emit(self.motor_interface.pos_fs, wavelengths,
+#                                intensities)
+#
+#             self.motor_interface.move_by_um(self.step_um)
+#
+#             # TODO right now this is just so the GUI doesn't freeze up,
+#             #  you should remember to remove this for the actual program
+#             time.sleep(.001)
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
@@ -676,6 +761,8 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self.progress = self.signal.progress
         self.finished = self.signal.finished
 
+        self.event_finished = threading.Event()
+
     def stop(self):
         self.motor_interface.motor.stop_motor()
 
@@ -685,6 +772,7 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
             time.sleep(.001)
 
         self.finished.emit(None)
+        self.event_finished.set()
 
 
 class UpdateSpectrumRunnable(qtc.QRunnable):
@@ -718,10 +806,11 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
             wavelengths, intensities = self.spectrometer.get_spectrum()
             # emit the spectrum as a signal
             self.progress.emit([wavelengths, intensities])
-            # I don't know how fast it does this, so I'm telling it to sleep
-            # for .05 seconds. If it turns out that it already takes ~.05s to
-            # get the spectrum then you can delete this
-            time.sleep(.05)
+
+            # TODO I don't know how fast it does this, so I'm telling it to
+            #  sleep for .001 seconds. If it turns out that it already takes
+            #  ~.001s to get the spectrum then you can delete this
+            time.sleep(.001)
 
 
 if __name__ == '__main__':

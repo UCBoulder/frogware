@@ -66,7 +66,7 @@ class MotorRunnable(qtc.QRunnable):
                     return
 
                 self.motor._position += dx
-                time.sleep(.001)
+                time.sleep(.005)
 
             self.motor.is_in_motion = False
 
@@ -80,7 +80,7 @@ class MotorRunnable(qtc.QRunnable):
                     return
 
                 self.motor._position -= dx
-                time.sleep(.001)
+                time.sleep(.005)
 
             self.motor.is_in_motion = False
 
