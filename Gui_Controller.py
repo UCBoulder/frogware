@@ -272,6 +272,9 @@ class ContinuousUpdate:
         # maybe it's not needed at all...
         self.backlash = 3.0
 
+        # step size limit
+        self.step_size_max = 50.
+
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
     # re-initialized every time
@@ -603,6 +606,11 @@ class ContinuousUpdate:
             self.stop_motor()
             return
 
+        # set a limit on the step size to be 50 fs
+        if self.step_size_fs > self.step_size_max:
+            raise_error(self.error_window, "step size cannot exceed 50 fs")
+            return
+
         exceed = self.motor_interface.value_exceeds_limits(self.step_size_um)
         if not exceed:
             self.motor_interface.move_by_um(self.step_size_um)
@@ -614,6 +622,11 @@ class ContinuousUpdate:
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists:
             self.stop_motor()
+            return
+
+        # set a limit on the step size to be 50 fs
+        if self.step_size_fs > self.step_size_max:
+            raise_error(self.error_window, "step size cannot exceed 50 fs")
             return
 
         exceed = self.motor_interface.value_exceeds_limits(-self.step_size_um)
@@ -711,6 +724,8 @@ class ContinuousUpdate:
         from the stage to the spectrometer.
         """
 
+        # I'm assuming the only thing that can take a while is moving to the
+        # start position.
         def move_to_start():
             self.move_to_pos(self.start_pos_um)
 
@@ -718,36 +733,49 @@ class ContinuousUpdate:
         self.runnable_update_motor.finished.connect(move_to_start)
 
 
-# class CollectSpectrogramRunnable(qtc.QRunnable):
-#     def __init__(self, motor_interface, spectrometer, end_um, step_um):
-#         super().__init__()
-#
-#         motor_interface: MotorInterface
-#         spectrometer: util.Spectrometer
-#         self.motor_interface = motor_interface
-#         self.spectrometer = spectrometer
-#         self.signal = Signal()
-#         self.started = self.signal.started
-#         self.progress = self.signal.progress
-#         self.finished = self.signal.finished
-#
-#         self.end_um = end_um
-#         self.step_um = step_um
-#
-#     def stop(self):
-#         self.motor_interface.motor.stop_motor()
-#
-#     def run(self):
-#         while self.motor_interface.pos_um < self.end_um:
-#             wavelengths, intensities = self.spectrometer.get_spectrum()
-#             self.progress.emit(self.motor_interface.pos_fs, wavelengths,
-#                                intensities)
-#
-#             self.motor_interface.move_by_um(self.step_um)
-#
-#             # TODO right now this is just so the GUI doesn't freeze up,
-#             #  you should remember to remove this for the actual program
-#             time.sleep(.001)
+class CollectSpectrogramRunnable(qtc.QRunnable):
+    def __init__(self, motor_interface, spectrometer, end_um, step_um):
+        super().__init__()
+
+        motor_interface: MotorInterface
+        spectrometer: util.Spectrometer
+        self.motor_interface = motor_interface
+        self.spectrometer = spectrometer
+        self.signal = Signal()
+        self.started = self.signal.started
+        self.progress = self.signal.progress
+        self.finished = self.signal.finished
+
+        self.end_um = end_um
+        self.step_um = step_um
+
+        self._stop = False
+
+    def stop(self):
+        self._stop = True
+
+    def run(self):
+        while self.motor_interface.pos_um < self.end_um:
+
+            # if stop has been set to true, then stop
+            if self._stop:
+                self._stop = False
+                return
+
+            # acquire spectrum
+            wavelengths, intensities = self.spectrometer.get_spectrum()
+
+            # emit current position in time, and the spectrum (wavelengths,
+            # spectrum)
+            self.progress.emit(self.motor_interface.pos_fs, wavelengths,
+                               intensities)
+
+            # step the motor
+            self.motor_interface.move_by_um(self.step_um)
+
+            # TODO right now this is just so the GUI doesn't freeze up,
+            #  you should remember to remove this for the actual program
+            time.sleep(.001)
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
