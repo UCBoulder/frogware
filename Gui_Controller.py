@@ -91,6 +91,11 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
                                                       self.motor_interface,
                                                       self.spectrometer)
 
+    def closeEvent(self, *args):
+        # self.continuous_update_tab.stop
+        print("Frogging has stopped")
+        self.continuous_update_tab.stop_all_runnables()
+
     def connect_motor_spectrometer(self):
         # should end up doing something like:
         # serial_number = apt.list_available_devices()[1]
@@ -385,6 +390,14 @@ class ContinuousUpdate:
 
         # connect the collect spectrogram button
         self.btn_collect_spectrogram.clicked.connect(self.collect_spectrogram)
+
+    def stop_all_runnables(self):
+        if self.motor_runnable_exists:
+            self.stop_motor()
+        if self.spectrogram_runnable_exists:
+            self.stop_spectrogram_collection()
+        if self.cont_update_runnable_exists:
+            self.stop_continuous_update()
 
     @property
     def T0_um(self):
