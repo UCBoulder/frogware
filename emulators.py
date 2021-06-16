@@ -6,8 +6,11 @@ import time
 import PyQt5.QtCore as qtc
 import scipy.constants as sc
 
-
 pool = qtc.QThreadPool.globalInstance()
+
+# global variables
+step_size_mm = 30e-9 * 1e3  # 30 nm
+sleep_time = .001 # 1ms
 
 
 class Motor:
@@ -57,7 +60,8 @@ class MotorRunnable(qtc.QRunnable):
         super().__init__()
 
     def run(self):
-        dx = sc.c * 1e-12 / 2
+        # dx = sc.c * 1e-12 / 2
+        dx = step_size_mm
         if self.motor.position < self.pos_mm:
             self.motor.is_in_motion = True
 
@@ -68,7 +72,7 @@ class MotorRunnable(qtc.QRunnable):
                     return
 
                 self.motor._position += dx
-                time.sleep(.005)
+                time.sleep(sleep_time)
 
             self.motor.is_in_motion = False
 
@@ -82,7 +86,7 @@ class MotorRunnable(qtc.QRunnable):
                     return
 
                 self.motor._position -= dx
-                time.sleep(.005)
+                time.sleep(sleep_time)
 
             self.motor.is_in_motion = False
 
@@ -95,11 +99,13 @@ class Spectrometer:
         self.int_time_micros = 1000
         self.integration_time_micros_limits = [1, 10e6]
 
+    def wavelengths(self):
+        return np.linspace(350, 1150, 5000)
+
     def spectrum(self):
-        wavelengths = np.linspace(350, 1150, 5000)
         lambda0 = 25 + 5 * np.random.random()
-        intensities = 1 / np.cosh((wavelengths - 750) / lambda0)
-        return wavelengths, intensities
+        intensities = 1 / np.cosh((self.wavelengths() - 750) / lambda0)
+        return self.wavelengths(), intensities
 
     def integration_time_micros(self, time_micros):
         self.int_time_micros = time_micros

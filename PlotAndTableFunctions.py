@@ -143,6 +143,11 @@ class PlotWindow:
         self.ymin, self.ymax = curve.yData[[0, -1]]
         self.update_line_edits_to_properties()
 
+    def format_to_xy_data(self, x, y):
+        self.xmin, self.xmax = x[[0, -1]]
+        self.ymin, self.ymax = y[[0, -1]]
+        self.update_line_edits_to_properties()
+
 
 def get_colormap(string):
     pos = np.linspace(0, 1, 300)
@@ -172,7 +177,7 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
         self.ii = pg.ImageItem()
         self.PlotItem.addItem(self.ii)
 
-        self.plot_image()
+        # self.plot_image()
 
         self.xmin, self.xmax = 0., 1.
         self.ymin, self.ymax = 0., 1.
@@ -207,22 +212,29 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
         self.PlotItem.setYRange(self.ymin, ymax)
         self.ymax = ymax
 
-    def plot_image(self, x=np.array([0, 1]), y=np.array([0, 1]),
-                   data=face(True), cmap='cividis', format='xy'):
+    def setup_2dplot(self, x=np.array([0, 1]), y=np.array([0, 1]),
+                     cmap='cividis', format='xy'):
+
+        # reset the transformation or else each time you collect a spectrogram
+        # it shrinks the plot
+        self.ii.resetTransform()
+
         _, lut = get_colormap(cmap)
-        self.ii.setImage(data)
         self.ii.setLookupTable(lut)
 
         xlims, ylims = x[[0, -1]], y[[0, -1]]
         x0, y0 = xlims[0], ylims[0]
 
         if format == 'ij':
-            yscale, xscale = data.shape
+            yscale, xscale = len(x), len(y)
             self.ii.translate(y0, x0)
             self.ii.scale(np.diff(ylims) / yscale, np.diff(xlims) / xscale)
         elif format == 'xy':
-            xscale, yscale = data.shape
+            xscale, yscale = len(x), len(y)
             self.ii.translate(x0, y0)
             self.ii.scale(np.diff(xlims) / xscale, np.diff(ylims) / yscale)
         else:
             raise ValueError("format should be 'ij' or 'xy'")
+
+    def plot_image(self, data):
+        self.ii.setImage(data)

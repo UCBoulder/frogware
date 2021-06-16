@@ -16,6 +16,9 @@ from scipy.constants import c as c_mks
 # than a few seconds
 pool = qtc.QThreadPool.globalInstance()
 
+# global variables
+tol_um = .03  # 30 nm
+
 
 def dist_um_to_T_fs(value_um):
     """
@@ -211,16 +214,22 @@ class ContinuousUpdate:
         self.lcd_current_pos_um_tab2 = self.main_window.lcd_tab2_current_pos_um
         self.lcd_current_pos_fs_tab2 = self.main_window.lcd_tab2_current_pos_fs
         self.btn_setT0 = self.main_window.btn_set_T0
-        self.plot_window = plotf.PlotWindow(self.main_window.le_cont_upd_xmin,
-                                            self.main_window.le_cont_upd_xmax,
-                                            self.main_window.le_cont_upd_ymin,
-                                            self.main_window.le_cont_upd_ymax,
-                                            self.main_window.gv_cont_upd_spec)
+        self.plot1d_window = plotf.PlotWindow(self.main_window.le_cont_upd_xmin,
+                                              self.main_window.le_cont_upd_xmax,
+                                              self.main_window.le_cont_upd_ymin,
+                                              self.main_window.le_cont_upd_ymax,
+                                              self.main_window.gv_cont_upd_spec)
+        self.plot2d_window = plotf.PlotWindow(
+            self.main_window.le_spectrogram_xmin,
+            self.main_window.le_spectrogram_xmax,
+            self.main_window.le_spectrogram_ymin,
+            self.main_window.le_spectrogram_ymax,
+            self.main_window.gv_Spectrogram)
         self.actionStop = self.main_window.actionStop
 
         # create a curve and add it to the plotwidget
         self.curve = plotf.create_curve()
-        self.plot_window.plotwidget.addItem(self.curve)
+        self.plot1d_window.plotwidget.addItem(self.curve)
 
         # initialize the step size and position, 0 is arbitrary
         self._step_size_fs = 0
@@ -288,7 +297,7 @@ class ContinuousUpdate:
                 self.motor_interface)
         elif string == "spectrogram":
             self.runnable_spectrogram = CollectSpectrogramRunnable(
-                self.motor_interface, self.spectrometer, self.end_pos_um,
+                self.motor_interface, self.spectrometer, self.end_pos_fs,
                 self.step_size_um_spectrogram)
 
     def connect_runnable(self, string):
@@ -316,11 +325,18 @@ class ContinuousUpdate:
             # spectrogram updates current position
             self.runnable_spectrogram.progress.connect(self.update_current_pos)
 
+            # spectrogram updates the plot of the spectrogram
+            self.runnable_spectrogram.progress.connect(
+                self.update_spectrogram_plot)
+
             # spectrogram updates the spectrum plot
             self.runnable_spectrogram.progress.connect(self.plot_update)
 
             # the stop button stops the spectrogram collection
             self.actionStop.triggered.connect(self.stop_spectrogram_collection)
+
+            self.runnable_spectrogram.finished.connect(
+                self.stop_spectrogram_collection)
 
     def connect(self):
         # if the start continuous update button is pressed start the
@@ -612,6 +628,9 @@ class ContinuousUpdate:
         # start the continuous update
         pool.start(self.runnable_update_spectrum)
 
+        self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
+                                             np.array([0, 1]))
+
     def stop_continuous_update(self):
         # stop the continuous update
         self.runnable_update_spectrum.stop()
@@ -773,37 +792,72 @@ class ContinuousUpdate:
         if self.cont_update_runnable_exists:
             self.stop_continuous_update()
 
-        # I'm assuming the only thing that can take a while is moving to the
-        # start position.
-        def move_to_start():
-            try:
-                self.move_to_pos(self.start_pos_um)
-            except:
-                return
-
-            self.runnable_update_motor.finished.connect(
-                continue_spectrogram_collection)
-
-        def continue_spectrogram_collection():
-            self.spectrogram_runnable_exists = True
-            self.create_runnable('spectrogram')
-            self.connect_runnable('spectrogram')
-            pool.start(self.runnable_spectrogram)
-
         try:
             self.move_to_pos(self.start_pos_um - self.backlash)
         except:
             return
 
-        self.runnable_update_motor.finished.connect(move_to_start)
+        # self.btn_collect_spectrogram.setText("Stop \n Collection")
+        self.runnable_update_motor.finished.connect(self._move_to_start)
+
+    # I'm assuming the only thing that can take a while is moving to the
+    # start position.
+    def _move_to_start(self):
+        # print("I executed")
+
+        target = self.start_pos_um - self.backlash
+        if abs(self.motor_interface.pos_um - target) > 1.5 * tol_um:
+            return
+
+        try:
+            self.move_to_pos(self.start_pos_um)
+        except:
+            return
+
+        self.runnable_update_motor.finished.connect(
+            self._continue_spectrogram_collection)
+
+    def _continue_spectrogram_collection(self):
+        npts_T = len(np.arange(self.start_pos_fs, self.end_pos_fs,
+                               self.step_size_fs_spectrogram))
+
+        npts_wl = len(self.spectrometer.wavelengths)
+
+        self.spectrogram_array = np.zeros((npts_T, npts_wl))
+
+        self.spectrogram_runnable_exists = True
+        self.create_runnable('spectrogram')
+        self.connect_runnable('spectrogram')
+        pool.start(self.runnable_spectrogram)
+
+        self._setup_2dplot()
+        self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
+                                             np.array([0, 1]))
+
+    def _setup_2dplot(self):
+        T_fs = np.arange(self.start_pos_fs, self.end_pos_fs,
+                         self.step_size_fs_spectrogram)
+        wavelengths = self.spectrometer.wavelengths
+        self.plot2d_window.plotwidget.setup_2dplot(x=T_fs,
+                                                   y=wavelengths,
+                                                   cmap='jet',
+                                                   format='xy')
+        self.plot2d_window.format_to_xy_data(T_fs, wavelengths)
 
     def stop_spectrogram_collection(self):
         self.runnable_spectrogram.stop()
         self.spectrogram_runnable_exists = False
 
+        # self.btn_collect_spectrogram.setText("Start \n Collection")
+
+    def update_spectrogram_plot(self, X):
+        wavelengths, intensities, n = X
+        self.spectrogram_array[n] = intensities
+        self.plot2d_window.plotwidget.ii.setImage(self.spectrogram_array)
+
 
 class CollectSpectrogramRunnable(qtc.QRunnable):
-    def __init__(self, motor_interface, spectrometer, end_um, step_um):
+    def __init__(self, motor_interface, spectrometer, end_fs, step_um):
         super().__init__()
 
         motor_interface: MotorInterface
@@ -815,16 +869,18 @@ class CollectSpectrogramRunnable(qtc.QRunnable):
         self.progress = self.signal.progress
         self.finished = self.signal.finished
 
-        self.end_um = end_um
+        self.end_fs = end_fs
         self.step_um = step_um
 
         self._stop = False
+
+        self.n = 0
 
     def stop(self):
         self._stop = True
 
     def run(self):
-        while self.motor_interface.pos_um < self.end_um:
+        while self.motor_interface.pos_fs < self.end_fs:
 
             # if stop has been set to true, then stop
             if self._stop:
@@ -834,16 +890,21 @@ class CollectSpectrogramRunnable(qtc.QRunnable):
             # acquire spectrum
             wavelengths, intensities = self.spectrometer.get_spectrum()
 
-            # emit spectrum (wavelengths, spectrum) and current position in time
-            self.progress.emit([wavelengths, intensities,
-                                self.motor_interface.pos_fs])
+            # emit spectrum (wavelengths, spectrum) and index along the
+            # step
+            self.progress.emit([wavelengths, intensities, self.n])
 
             # step the motor
             self.motor_interface.move_by_um(self.step_um)
 
+            # step the index
+            self.n += 1
+
             # TODO right now this is just so the GUI doesn't freeze up,
             #  you should remember to remove this for the actual program
             time.sleep(.1)
+
+        self.finished.emit(None)
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
@@ -857,8 +918,6 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self.progress = self.signal.progress
         self.finished = self.signal.finished
 
-        self.event_finished = threading.Event()
-
     def stop(self):
         self.motor_interface.motor.stop_motor()
 
@@ -868,7 +927,6 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
             time.sleep(.001)
 
         self.finished.emit(None)
-        self.event_finished.set()
 
 
 class UpdateSpectrumRunnable(qtc.QRunnable):

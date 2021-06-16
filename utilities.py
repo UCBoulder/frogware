@@ -25,6 +25,10 @@ class Spectrometer:
         return self.spectrometer.spectrum()
 
     @property
+    def wavelengths(self):
+        return self.spectrometer.wavelengths()
+
+    @property
     def integration_time_micros(self):
         return self._integration_time_micros
 
