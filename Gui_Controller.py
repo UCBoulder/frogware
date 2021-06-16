@@ -866,7 +866,7 @@ class ContinuousUpdate:
     def update_spectrogram_plot(self, X):
         wavelengths, intensities, n = X
         self.spectrogram_array[n] = intensities
-        self.plot2d_window.plotwidget.ii.setImage(self.spectrogram_array)
+        self.plot2d_window.plotwidget.plot_image(self.spectrogram_array)
 
 
 class CollectSpectrogramRunnable(qtc.QRunnable):
