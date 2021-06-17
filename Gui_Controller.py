@@ -944,6 +944,7 @@ class FrogLand:
         self.connect_runnable('spectrogram')
         pool.start(self.runnable_spectrogram)
 
+        self.btn_collect_spectrogram.setText("Stop \n Collection")
         self._setup_2dplot()
         self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
                                              np.array([0, 1]))
@@ -962,7 +963,7 @@ class FrogLand:
         self.runnable_spectrogram.stop()
         self.spectrogram_runnable_exists = False
 
-        # self.btn_collect_spectrogram.setText("Start \n Collection")
+        self.btn_collect_spectrogram.setText("Start \n Collection")
 
     def update_spectrogram_plot(self, X):
         wavelengths, intensities, n = X
