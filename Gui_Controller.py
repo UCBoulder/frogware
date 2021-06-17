@@ -1,6 +1,9 @@
+import copy
 import threading
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
+import pandas as pd
+
 from Window import Ui_MainWindow
 import PlotAndTableFunctions as plotf
 import numpy as np
@@ -11,6 +14,7 @@ from Error import Ui_Form
 import PyQt5.QtGui as qtg
 import emulators as em
 from scipy.constants import c as c_mks
+import pandas
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
@@ -85,16 +89,23 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         #                                          self.le_spectrogram_ymax,
         #                                          self.gv_Spectrogram)
 
+        self.error_window = ErrorWindow()
+
         self.connect_motor_spectrometer()
 
-        self.continuous_update_tab = ContinuousUpdate(self,
-                                                      self.motor_interface,
-                                                      self.spectrometer)
+        self.frog_land = FrogLand(self,
+                                  self.motor_interface,
+                                  self.spectrometer)
+
+        self.set_hardware_params()
+        self.update_hardware_from_table_int_time()
+
+        self.connect_signals()
 
     def closeEvent(self, *args):
         # self.continuous_update_tab.stop
         print("Frogging has stopped")
-        self.continuous_update_tab.stop_all_runnables()
+        self.frog_land.stop_all_runnables()
 
     def connect_motor_spectrometer(self):
         # should end up doing something like:
@@ -107,6 +118,93 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         self.motor_interface = MotorInterface(util.Motor(em.Motor()))
         self.spectrometer = util.Spectrometer(em.Spectrometer())
         # pass
+
+    def connect_signals(self):
+        self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)
+        self.tableWidget.cellClicked.connect(self.save_table_item)
+        self.actionSave.triggered.connect(self.save_spectrogram)
+
+    def set_hardware_params(self):
+        # set integration time limits (obtained in microsecond from
+        # the spectrometer)
+        int_time_lower_limit_us, int_time_upper_limit_us = \
+            self.spectrometer.integration_time_micros_limit
+
+        item_ll = qt.QTableWidgetItem()
+        item_ul = qt.QTableWidgetItem()
+
+        item_ll.setText(str(int_time_lower_limit_us * 1e-3))
+        item_ul.setText(str(int_time_upper_limit_us * 1e-3))
+
+        self.tableWidget.setItem(0, 1, item_ll)
+        self.tableWidget.setItem(0, 2, item_ul)
+
+    @property
+    def integration_time_ms(self):
+        return self.spectrometer.integration_time_micros * 1e-3
+
+    @integration_time_ms.setter
+    def integration_time_ms(self, value_ms):
+        # set the integration time in the hardware
+        self.spectrometer.integration_time_micros = value_ms * 1e3
+
+    def update_table_from_hardware_int_time(self):
+        # update the gui based off the hardware
+        self.tableWidget.item(0, 0).setText(str(self.integration_time_ms))
+
+    def update_hardware_from_table_int_time(self):
+        self.integration_time_ms = float(self.tableWidget.item(0, 0).text())
+
+    def save_table_item(self, row, col):
+        self.saved_table_item_text = \
+            self.tableWidget.item(row, col).text()
+
+    def slot_for_tablewidget(self, row, col):
+        if (row, col) == (0, 0):
+            int_time_ms = float(self.tableWidget.item(row, col).text())
+            ll_us, ul_us = \
+                self.spectrometer.integration_time_micros_limit
+            ll_ms, ul_ms = ll_us * 1e-3, ul_us * 1e-3
+            if ll_ms <= int_time_ms <= ul_ms:
+                self.update_hardware_from_table_int_time()
+            else:
+                raise_error(
+                    self.error_window,
+                    "integration time does not fall within allowed limits")
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text
+                )
+
+        if (row, col) == (0, 1) or (row, col) == (0, 2):
+            raise_error(
+                self.error_window,
+                "cannot edit this hardware setting")
+            self.tableWidget.item(row, col).setText(self.saved_table_item_text)
+
+        if (row, col) == (0, 3):
+            raise_error(
+                self.error_window,
+                "I'm too lazy to let you change this")
+            self.tableWidget.item(row, col).setText(self.saved_table_item_text)
+
+    def save_spectrogram(self):
+        if self.frog_land.spectrogram_array is None:
+            raise_error(self.error_window,
+                        "No spectrogram has been collected yet")
+            return
+
+        filename, _ = qt.QFileDialog.getSaveFileName(self, "Save Spectrogram")
+        if filename == '':
+            return
+
+        if filename[-4:] != ".csv" and filename[-4:] != ".CSV":
+            filename += ".csv"
+
+        data = self.frog_land.spectrogram_array
+        columns = self.frog_land.wl_axis
+        index = self.frog_land.Taxis_fs
+        frame = pd.DataFrame(data=data, index=index, columns=columns)
+        frame.to_csv(filename)
 
 
 class MotorInterface:
@@ -176,7 +274,7 @@ class MotorInterface:
             return False
 
 
-class ContinuousUpdate:
+class FrogLand:
     """
     This class interfaces the Spectrum Continuous Update tab with the main
     window. It expects an instance of the MainWindow, MotorInterface,
@@ -289,6 +387,9 @@ class ContinuousUpdate:
 
         # step size limit
         self.step_size_max = 50.
+
+        self.spectrogram_array = None
+        self.Taxis_fs = None
 
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
@@ -848,14 +949,14 @@ class ContinuousUpdate:
                                              np.array([0, 1]))
 
     def _setup_2dplot(self):
-        T_fs = np.arange(self.start_pos_fs, self.end_pos_fs,
-                         self.step_size_fs_spectrogram)
-        wavelengths = self.spectrometer.wavelengths
-        self.plot2d_window.plotwidget.setup_2dplot(x=T_fs,
-                                                   y=wavelengths,
+        self.Taxis_fs = np.arange(self.start_pos_fs, self.end_pos_fs,
+                                  self.step_size_fs_spectrogram)
+        self.wl_axis = self.spectrometer.wavelengths
+        self.plot2d_window.plotwidget.setup_2dplot(x=self.Taxis_fs,
+                                                   y=self.wl_axis,
                                                    cmap='jet',
                                                    format='xy')
-        self.plot2d_window.format_to_xy_data(T_fs, wavelengths)
+        self.plot2d_window.format_to_xy_data(self.Taxis_fs, self.wl_axis)
 
     def stop_spectrogram_collection(self):
         self.runnable_spectrogram.stop()
@@ -915,7 +1016,8 @@ class CollectSpectrogramRunnable(qtc.QRunnable):
 
             # TODO right now this is just so the GUI doesn't freeze up,
             #  you should remember to remove this for the actual program
-            time.sleep(.1)
+            sleep_time = self.spectrometer.integration_time_micros * 1e-6
+            time.sleep(sleep_time)
 
         self.finished.emit(None)
 
@@ -977,7 +1079,8 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
             # TODO I don't know how fast it does this, so I'm telling it to
             #  sleep for .001 seconds. If it turns out that it already takes
             #  ~.001s to get the spectrum then you can delete this
-            time.sleep(.001)
+            sleep_time = self.spectrometer.integration_time_micros * 1e-6
+            time.sleep(sleep_time)
 
 
 if __name__ == '__main__':

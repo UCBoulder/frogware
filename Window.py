@@ -405,6 +405,10 @@ class Ui_MainWindow(object):
         item = QtWidgets.QTableWidgetItem()
         self.tableWidget.setItem(0, 0, item)
         item = QtWidgets.QTableWidgetItem()
+        self.tableWidget.setItem(0, 1, item)
+        item = QtWidgets.QTableWidgetItem()
+        self.tableWidget.setItem(0, 2, item)
+        item = QtWidgets.QTableWidgetItem()
         self.tableWidget.setItem(0, 3, item)
         self.gridLayout_5.addWidget(self.tableWidget, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tab_3, "")
@@ -435,7 +439,7 @@ class Ui_MainWindow(object):
         self.toolBar.addAction(self.actionStop)
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -493,7 +497,7 @@ class Ui_MainWindow(object):
         __sortingEnabled = self.tableWidget.isSortingEnabled()
         self.tableWidget.setSortingEnabled(False)
         item = self.tableWidget.item(0, 0)
-        item.setText(_translate("MainWindow", "1"))
+        item.setText(_translate("MainWindow", "30"))
         item = self.tableWidget.item(0, 3)
         item.setText(_translate("MainWindow", "ms"))
         self.tableWidget.setSortingEnabled(__sortingEnabled)

@@ -97,7 +97,7 @@ class MotorRunnable(qtc.QRunnable):
 class Spectrometer:
     def __init__(self):
         self.int_time_micros = 1000
-        self.integration_time_micros_limits = [1, 10e6]
+        self.integration_time_micros_limits = [1e3, 65e6]
 
     def wavelengths(self):
         return np.linspace(350, 1150, 5000)
