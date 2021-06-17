@@ -3,7 +3,6 @@ import threading
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
 import pandas as pd
-
 from Window import Ui_MainWindow
 import PlotAndTableFunctions as plotf
 import numpy as np
@@ -365,8 +364,8 @@ class FrogLand:
         self.connect()
 
         # update the display
-        self.update_stepsize_from_le_fs()
-        self.update_stepsize_spectrogram_from_le_fs()
+        self.update_stepsize_from_le_um()
+        self.update_stepsize_spectrogram_from_le_um()
         self.update_current_pos()
 
         self.update_startpos_from_le_fs()
@@ -851,6 +850,7 @@ class FrogLand:
         self.motor_runnable_exists = False
 
         self.btn_move_to_pos.setText("move to position")
+        self.btn_home_stage.setText("home stage")
 
     def motor_finished(self):
         self.motor_runnable_exists = False
@@ -887,6 +887,8 @@ class FrogLand:
         self.create_runnable('motor')
         self.connect_runnable('motor')
         pool.start(self.runnable_update_motor)
+
+        self.btn_home_stage.setText("stop homing")
 
     # TODO I think this is the last thing remaining for you to do
     def collect_spectrogram(self):
@@ -932,8 +934,10 @@ class FrogLand:
             self._continue_spectrogram_collection)
 
     def _continue_spectrogram_collection(self):
-        npts_T = len(np.arange(self.start_pos_fs, self.end_pos_fs,
-                               self.step_size_fs_spectrogram))
+        self.Taxis_fs = np.arange(self.motor_interface.pos_fs, self.end_pos_fs,
+                                  self.step_size_fs_spectrogram)
+
+        npts_T = len(self.Taxis_fs)
 
         npts_wl = len(self.spectrometer.wavelengths)
 
@@ -950,8 +954,6 @@ class FrogLand:
                                              np.array([0, 1]))
 
     def _setup_2dplot(self):
-        self.Taxis_fs = np.arange(self.start_pos_fs, self.end_pos_fs,
-                                  self.step_size_fs_spectrogram)
         self.wl_axis = self.spectrometer.wavelengths
         self.plot2d_window.plotwidget.setup_2dplot(x=self.Taxis_fs,
                                                    y=self.wl_axis,
