@@ -21,6 +21,8 @@ pool = qtc.QThreadPool.globalInstance()
 
 # global variables
 tol_um = .03  # 30 nm
+backlash = 3.0
+overshoot_for_backlash = True
 
 
 def dist_um_to_T_fs(value_um):
@@ -891,15 +893,12 @@ class FrogLand:
         self.btn_home_stage.setText("stop homing")
 
     # TODO I think this is the last thing remaining for you to do
-    def collect_spectrogram(self):
-        """
-        I've spent some time thinking about this, and I think I'll just do
-        the move stop method for now. Ideally in the future it would
-        be good to implement continuous scanning, and sync the stage motion
-        with the spectrometer's data acquisition via a trigger sent
-        from the stage to the spectrometer.
-        """
+    def collect_spectrogram(self,
+                            *args,
+                            overshoot_for_backlash=overshoot_for_backlash):
 
+        # stop spectrogram collection, and continuous spectrum update
+        # if those are already running and return
         if self.spectrogram_runnable_exists:
             self.stop_spectrogram_collection()
             return
@@ -908,23 +907,39 @@ class FrogLand:
         if self.cont_update_runnable_exists:
             self.stop_continuous_update()
 
-        try:
-            self.move_to_pos(self.start_pos_um - self.backlash)
-        except:
-            return
+        # if overshoot_for_backlash is true, then the idea is to
+        # overshoot the start position by the backlash amount,
+        # then move to the start position
+        if overshoot_for_backlash:
+            try:
+                self.move_to_pos(self.start_pos_um - self.backlash)
+            except:
+                return
 
-        # self.btn_collect_spectrogram.setText("Stop \n Collection")
-        self.runnable_update_motor.finished.connect(self._move_to_start)
+            # self.btn_collect_spectrogram.setText("Stop \n Collection")
+            self.runnable_update_motor.finished.connect(self._move_to_start)
+
+        # if overshoot_for_backlash is false, then just move to the start
+        # position
+        else:
+            try:
+                self.move_to_pos(self.start_pos_um)
+            except:
+                return
+
+            self.runnable_update_motor.finished.connect(
+                self._continue_spectrogram_collection)
 
     # I'm assuming the only thing that can take a while is moving to the
     # start position.
     def _move_to_start(self):
-        # print("I executed")
-
+        # in case you stopped motion before you got there, only move
+        # to start if you are within tol_um of the start position
         target = self.start_pos_um - self.backlash
         if abs(self.motor_interface.pos_um - target) > 1.5 * tol_um:
             return
 
+        # try to move to the start position
         try:
             self.move_to_pos(self.start_pos_um)
         except:
@@ -934,20 +949,21 @@ class FrogLand:
             self._continue_spectrogram_collection)
 
     def _continue_spectrogram_collection(self):
+        # define the time and wavelength axis for 2d plot update
         self.Taxis_fs = np.arange(self.motor_interface.pos_fs, self.end_pos_fs,
                                   self.step_size_fs_spectrogram)
-
         npts_T = len(self.Taxis_fs)
-
         npts_wl = len(self.spectrometer.wavelengths)
 
         self.spectrogram_array = np.zeros((npts_T, npts_wl))
 
+        # start the spectrogram collection
         self.spectrogram_runnable_exists = True
         self.create_runnable('spectrogram')
         self.connect_runnable('spectrogram')
         pool.start(self.runnable_spectrogram)
 
+        # set up the 2d and 1d plots (set plot axis limits)
         self.btn_collect_spectrogram.setText("Stop \n Collection")
         self._setup_2dplot()
         self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
