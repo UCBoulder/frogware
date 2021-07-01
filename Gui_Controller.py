@@ -23,6 +23,7 @@ pool = qtc.QThreadPool.globalInstance()
 tol_um = .03  # 30 nm
 backlash = 3.0  # um
 overshoot_for_backlash = False
+edge_limit_buffer_mm = 1e-3  # 1 um
 
 
 def dist_um_to_T_fs(value_um):
@@ -229,7 +230,7 @@ class MotorInterface:
         self.T0_um = 0  # T0 position of the motor in micron
 
         # don't let the stage come closer than this to the stage limits.
-        self._safety_buffer_mm = 1e-3  # 1um
+        self._safety_buffer_mm = edge_limit_buffer_mm  # 1um
 
         self.error_window = ErrorWindow()
 
