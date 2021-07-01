@@ -21,8 +21,8 @@ pool = qtc.QThreadPool.globalInstance()
 
 # global variables
 tol_um = .03  # 30 nm
-backlash = 3.0
-overshoot_for_backlash = True
+backlash = 3.0  # um
+overshoot_for_backlash = False
 
 
 def dist_um_to_T_fs(value_um):
@@ -198,14 +198,23 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         if filename == '':
             return
 
-        if filename[-4:] != ".csv" and filename[-4:] != ".CSV":
+        if filename[-4:] == ".txt" or filename[-4:] == ".TXT":
+            data = self.frog_land.spectrogram_array
+            to_vstack = self.frog_land.wl_axis
+            to_hstack = self.frog_land.Taxis_fs
+            _ = np.hstack((to_hstack[:, np.newaxis], data))
+            top_row = np.hstack((np.array([np.nan]), to_vstack))
+            final = np.vstack((top_row, _))
+            np.savetxt(filename, final)
+
+        elif filename[-4:] != ".csv" and filename[-4:] != ".CSV":
             filename += ".csv"
 
-        data = self.frog_land.spectrogram_array
-        columns = self.frog_land.wl_axis
-        index = self.frog_land.Taxis_fs
-        frame = pd.DataFrame(data=data, index=index, columns=columns)
-        frame.to_csv(filename)
+            data = self.frog_land.spectrogram_array
+            columns = self.frog_land.wl_axis
+            index = self.frog_land.Taxis_fs
+            frame = pd.DataFrame(data=data, index=index, columns=columns)
+            frame.to_csv(filename)
 
 
 class MotorInterface:
@@ -277,8 +286,7 @@ class MotorInterface:
 
 class FrogLand:
     """
-    This class interfaces the Spectrum Continuous Update tab with the main
-    window. It expects an instance of the MainWindow, MotorInterface,
+    This class is the main user interface. It expects an instance of MainWindow, MotorInterface,
     and util.Spectrometer class in the init function.
     """
 
@@ -892,7 +900,6 @@ class FrogLand:
 
         self.btn_home_stage.setText("stop homing")
 
-    # TODO I think this is the last thing remaining for you to do
     def collect_spectrogram(self,
                             *args,
                             overshoot_for_backlash=overshoot_for_backlash):

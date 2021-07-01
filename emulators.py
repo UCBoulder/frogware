@@ -15,7 +15,6 @@ sleep_time = .001 # 1ms
 
 class Motor:
     def __init__(self):
-        pass
 
         # this is arbitrary, when not using the emulator, it will be the
         # current position of the motor when one starts the program
