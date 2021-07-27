@@ -5,6 +5,9 @@ class Spectrometer:
     def __init__(self):
         self.spec, self.wl_nm = sn.array_get_spec(0)
 
+        # carried over from emulator
+        self.integration_time_micros_limits = [1.e3, 65.e3]
+
     def print_info(self):
         self.spec['device'].print_info()
 
@@ -13,5 +16,14 @@ class Spectrometer:
                                        scans_to_avg=scans_to_avg,
                                        x_smooth=x_smooth)
 
-    def get_spectrum(self):
-        return sn.array_spectrum(self.spec, self.wl_nm)[:, 1]
+    # carried over from emulator
+    def wavelengths(self):
+        return self.wl_nm
+
+    # carried over from emulator
+    def spectrum(self):
+        return self.wl_nm, self.spec['device'].read_spectrum()
+
+    # carried over from emulator
+    def integration_time_micros(self, time_micros):
+        self.set_config(int_time_ms=time_micros * 1e-3)

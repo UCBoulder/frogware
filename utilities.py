@@ -17,6 +17,11 @@ class Spectrometer:
         self.spectrometer = spectrometer
 
         self._integration_time_micros = 1000  # 1ms
+        # for some reason seabreeze doesn't have a "read integration time"
+        # function, so initialize it to some value, and then set the actual
+        # spectrometer setting to that value. From there
+        # just keep track of it.
+        self.integration_time_micros = self._integration_time_micros
 
     def get_spectrum(self):
         """

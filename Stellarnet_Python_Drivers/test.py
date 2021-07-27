@@ -3,4 +3,4 @@ import matplotlib.pyplot as plt
 
 spec = snp.Spectrometer()
 plt.figure()
-plt.plot(spec.wl_nm, spec.get_spectrum())
+plt.plot(spec.wl_nm, spec.spectrum()[1])
