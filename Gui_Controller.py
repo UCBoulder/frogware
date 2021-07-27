@@ -785,7 +785,7 @@ class FrogLand:
         self.curve.setData(x=wavelengths, y=self.bckgnd_subtrd)
 
     def set_ambient(self):
-        self.ambient_intensity[:] = copy.deepcopy(self.intensities)
+        self.ambient_intensity[:] = self.intensities[:]
 
     def zero_ambient(self):
         self.ambient_intensity[:] = 0.
