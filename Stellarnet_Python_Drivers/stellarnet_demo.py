@@ -13,14 +13,13 @@ def getSpectrum(spectrometer, wav, inttime, scansavg, smooth):
     spectrum = sn.array_spectrum(spectrometer, wav)
     logging.warning('recieved spectrum')
     return spectrum
-    
+
 spectrometer, wav = sn.array_get_spec(0)
-       
+
 inttime = 100
 scansavg = 1
-smooth = 1 
+smooth = 1
 
 logging.warning('displaying spectrum')
 data=getSpectrum(spectrometer, wav, inttime, scansavg, smooth)
 print(data)
-
