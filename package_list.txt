@@ -5,7 +5,7 @@ Anaconda or Miniconda:
 conda create --name frogenv python=3.8 numpy scipy pyqtgraph pandas
 
 conda activate frogenv
-pip install pyusb=1.0.0b1
+pip install pyusb==1.0.0b1
 
 Then download the thorlabs_apt package as a zip file from its github page:
 https://github.com/qpit/thorlabs_apt
