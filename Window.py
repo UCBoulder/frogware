@@ -2,18 +2,16 @@
 
 # Form implementation generated from reading ui file 'Gui_Window.ui'
 #
-# Created by: PyQt5 UI code generator 5.12.3
+# Created by: PyQt5 UI code generator 5.9.2
 #
 # WARNING! All changes made in this file will be lost!
 
-
 from PyQt5 import QtCore, QtGui, QtWidgets
-
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1030, 667)
+        MainWindow.resize(1036, 667)
         MainWindow.setMinimumSize(QtCore.QSize(0, 25))
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -25,17 +23,26 @@ class Ui_MainWindow(object):
         self.tab.setObjectName("tab")
         self.gridLayout = QtWidgets.QGridLayout(self.tab)
         self.gridLayout.setObjectName("gridLayout")
-        self.horizontalLayout_16 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_16.setObjectName("horizontalLayout_16")
-        self.verticalLayout_13 = QtWidgets.QVBoxLayout()
-        self.verticalLayout_13.setObjectName("verticalLayout_13")
+        self.horizontalLayout_34 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_34.setObjectName("horizontalLayout_34")
+        self.verticalLayout_26 = QtWidgets.QVBoxLayout()
+        self.verticalLayout_26.setObjectName("verticalLayout_26")
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_13.addItem(spacerItem)
+        self.verticalLayout_26.addItem(spacerItem)
         self.groupBox_2 = QtWidgets.QGroupBox(self.tab)
-        self.groupBox_2.setMaximumSize(QtCore.QSize(237, 454))
+        self.groupBox_2.setMaximumSize(QtCore.QSize(243, 454))
         self.groupBox_2.setObjectName("groupBox_2")
-        self.verticalLayout_11 = QtWidgets.QVBoxLayout(self.groupBox_2)
-        self.verticalLayout_11.setObjectName("verticalLayout_11")
+        self.verticalLayout_25 = QtWidgets.QVBoxLayout(self.groupBox_2)
+        self.verticalLayout_25.setObjectName("verticalLayout_25")
+        self.horizontalLayout_33 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_33.setObjectName("horizontalLayout_33")
+        self.btn_set_ambient = QtWidgets.QPushButton(self.groupBox_2)
+        self.btn_set_ambient.setObjectName("btn_set_ambient")
+        self.horizontalLayout_33.addWidget(self.btn_set_ambient)
+        self.btn_zero_ambient = QtWidgets.QPushButton(self.groupBox_2)
+        self.btn_zero_ambient.setObjectName("btn_zero_ambient")
+        self.horizontalLayout_33.addWidget(self.btn_zero_ambient)
+        self.verticalLayout_25.addLayout(self.horizontalLayout_33)
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -45,7 +52,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_2.addWidget(self.btn_start_cnt_update)
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem2)
-        self.verticalLayout_11.addLayout(self.horizontalLayout_2)
+        self.verticalLayout_25.addLayout(self.horizontalLayout_2)
         self.groupBox_3 = QtWidgets.QGroupBox(self.groupBox_2)
         self.groupBox_3.setObjectName("groupBox_3")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.groupBox_3)
@@ -77,7 +84,7 @@ class Ui_MainWindow(object):
         self.le_step_size_fs.setObjectName("le_step_size_fs")
         self.formLayout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.le_step_size_fs)
         self.verticalLayout.addLayout(self.formLayout)
-        self.verticalLayout_11.addWidget(self.groupBox_3)
+        self.verticalLayout_25.addWidget(self.groupBox_3)
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
         spacerItem3 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -87,7 +94,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_5.addWidget(self.btn_home_stage)
         spacerItem4 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_5.addItem(spacerItem4)
-        self.verticalLayout_11.addLayout(self.horizontalLayout_5)
+        self.verticalLayout_25.addLayout(self.horizontalLayout_5)
         self.groupBox_4 = QtWidgets.QGroupBox(self.groupBox_2)
         self.groupBox_4.setObjectName("groupBox_4")
         self.verticalLayout_4 = QtWidgets.QVBoxLayout(self.groupBox_4)
@@ -118,7 +125,7 @@ class Ui_MainWindow(object):
         self.le_pos_fs.setObjectName("le_pos_fs")
         self.formLayout_2.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.le_pos_fs)
         self.verticalLayout_4.addLayout(self.formLayout_2)
-        self.verticalLayout_11.addWidget(self.groupBox_4)
+        self.verticalLayout_25.addWidget(self.groupBox_4)
         self.horizontalLayout_10 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_10.setObjectName("horizontalLayout_10")
         spacerItem7 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -134,7 +141,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_10.addLayout(self.verticalLayout_5)
         spacerItem8 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_10.addItem(spacerItem8)
-        self.verticalLayout_11.addLayout(self.horizontalLayout_10)
+        self.verticalLayout_25.addLayout(self.horizontalLayout_10)
         self.horizontalLayout_15 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_15.setObjectName("horizontalLayout_15")
         spacerItem9 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -150,7 +157,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_15.addLayout(self.verticalLayout_6)
         spacerItem10 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_15.addItem(spacerItem10)
-        self.verticalLayout_11.addLayout(self.horizontalLayout_15)
+        self.verticalLayout_25.addLayout(self.horizontalLayout_15)
         self.horizontalLayout_14 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_14.setObjectName("horizontalLayout_14")
         spacerItem11 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -160,11 +167,11 @@ class Ui_MainWindow(object):
         self.horizontalLayout_14.addWidget(self.btn_set_T0)
         spacerItem12 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_14.addItem(spacerItem12)
-        self.verticalLayout_11.addLayout(self.horizontalLayout_14)
-        self.verticalLayout_13.addWidget(self.groupBox_2)
+        self.verticalLayout_25.addLayout(self.horizontalLayout_14)
+        self.verticalLayout_26.addWidget(self.groupBox_2)
         spacerItem13 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_13.addItem(spacerItem13)
-        self.horizontalLayout_16.addLayout(self.verticalLayout_13)
+        self.verticalLayout_26.addItem(spacerItem13)
+        self.horizontalLayout_34.addLayout(self.verticalLayout_26)
         self.groupBox = QtWidgets.QGroupBox(self.tab)
         self.groupBox.setObjectName("groupBox")
         self.horizontalLayout_6 = QtWidgets.QHBoxLayout(self.groupBox)
@@ -214,8 +221,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout.addWidget(self.le_cont_upd_xmax)
         self.verticalLayout_2.addLayout(self.horizontalLayout)
         self.horizontalLayout_6.addLayout(self.verticalLayout_2)
-        self.horizontalLayout_16.addWidget(self.groupBox)
-        self.gridLayout.addLayout(self.horizontalLayout_16, 0, 0, 1, 1)
+        self.horizontalLayout_34.addWidget(self.groupBox)
+        self.gridLayout.addLayout(self.horizontalLayout_34, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tab, "")
         self.tab_2 = QtWidgets.QWidget()
         self.tab_2.setObjectName("tab_2")
@@ -447,6 +454,8 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.btn_set_ambient.setText(_translate("MainWindow", "Set Ambient"))
+        self.btn_zero_ambient.setText(_translate("MainWindow", "Zero Ambient"))
         self.btn_start_cnt_update.setText(_translate("MainWindow", "Start \n"
 " Continous Update"))
         self.btn_step_left.setText(_translate("MainWindow", "step left"))
@@ -508,5 +517,6 @@ class Ui_MainWindow(object):
         self.actionOpen.setText(_translate("MainWindow", "Open"))
         self.actionSave.setText(_translate("MainWindow", "Save"))
         self.actionStop.setText(_translate("MainWindow", "Stop"))
+
 from PlotAndTableFunctions import ImageWithAxisWidget, PlotWidget
 import QRC_file_rc

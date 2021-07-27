@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1030</width>
+    <width>1036</width>
     <height>667</height>
    </rect>
   </property>
@@ -32,9 +32,9 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout">
         <item row="0" column="0">
-         <layout class="QHBoxLayout" name="horizontalLayout_16">
+         <layout class="QHBoxLayout" name="horizontalLayout_34">
           <item>
-           <layout class="QVBoxLayout" name="verticalLayout_13">
+           <layout class="QVBoxLayout" name="verticalLayout_26">
             <item>
              <spacer name="verticalSpacer_5">
               <property name="orientation">
@@ -52,11 +52,29 @@
              <widget class="QGroupBox" name="groupBox_2">
               <property name="maximumSize">
                <size>
-                <width>237</width>
+                <width>243</width>
                 <height>454</height>
                </size>
               </property>
-              <layout class="QVBoxLayout" name="verticalLayout_11">
+              <layout class="QVBoxLayout" name="verticalLayout_25">
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_33">
+                 <item>
+                  <widget class="QPushButton" name="btn_set_ambient">
+                   <property name="text">
+                    <string>Set Ambient</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="btn_zero_ambient">
+                   <property name="text">
+                    <string>Zero Ambient</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_2">
                  <item>

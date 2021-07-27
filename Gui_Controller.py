@@ -326,6 +326,8 @@ class FrogLand:
             self.main_window.le_spectrogram_ymax,
             self.main_window.gv_Spectrogram)
         self.actionStop = self.main_window.actionStop
+        self.btn_set_ambient = self.main_window.btn_set_ambient
+        self.btn_zero_ambient = self.main_window.btn_zero_ambient
 
         # create a curve and add it to the plotwidget
         self.curve = plotf.create_curve()
@@ -388,6 +390,10 @@ class FrogLand:
         self.spectrogram_array = None
         self.Taxis_fs = None
 
+        self.ambient_intensity = np.zeros(len(self.spectrometer.wavelengths))
+        self.intensities = np.zeros(len(self.spectrometer.wavelengths))
+        self.bckgnd_subtrd = np.zeros(len(self.spectrometer.wavelengths))
+
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
     # re-initialized every time
@@ -404,12 +410,24 @@ class FrogLand:
                 self.step_size_um_spectrogram)
 
     def connect_runnable(self, string):
+        """
+        :param string: what runnable to connect: spectrum, motor, or
+        spectrogram
+
+        You already take care in this program not to have more than one
+        runnable instance for any hardware device running at one time.
+
+        The only thing left is to make sure that you don't have "redundant
+        retrieval", namely places where getting information of hardware
+        is redundant and wastes time.
+        """
         if string == 'spectrum':
             # for each retrieval of the spectrum update the plot in the gui
             self.runnable_update_spectrum.progress.connect(self.plot_update)
 
             # if the stop action button is pressed, stop the continuous update
             self.actionStop.triggered.connect(self.stop_continuous_update)
+
         elif string == "motor":
             # continuously update motor position
             self.runnable_update_motor.progress.connect(
@@ -432,8 +450,12 @@ class FrogLand:
             self.runnable_spectrogram.progress.connect(
                 self.update_spectrogram_plot)
 
+            # to avoid redundant spectrum retrievals,
+            # the update_spectrogram_plot function retrieves the spectrum
+            # and then uses it to update the 1D plot
+
             # spectrogram updates the spectrum plot
-            self.runnable_spectrogram.progress.connect(self.plot_update)
+            # self.runnable_spectrogram.progress.connect(self.plot_update)
 
             # the stop button stops the spectrogram collection
             self.actionStop.triggered.connect(self.stop_spectrogram_collection)
@@ -488,6 +510,10 @@ class FrogLand:
 
         # connect the collect spectrogram button
         self.btn_collect_spectrogram.clicked.connect(self.collect_spectrogram)
+
+        # connect the set ambient and zero ambient buttons
+        self.btn_set_ambient.clicked.connect(self.set_ambient)
+        self.btn_zero_ambient.clicked.connect(self.zero_ambient)
 
     def stop_all_runnables(self):
         if self.motor_runnable_exists:
@@ -752,8 +778,18 @@ class FrogLand:
     def plot_update(self, X):
         # the signal should emit wavelengths and intensities
         [wavelengths, intensities, *_] = X
+        self.intensities = intensities
         # set the data to the new spectrum
-        self.curve.setData(x=wavelengths, y=intensities)
+        self.bckgnd_subtrd = intensities - self.ambient_intensity
+        self.bckgnd_subtrd = np.where(self.bckgnd_subtrd > 0.,
+                                      self.bckgnd_subtrd, 0.)
+        self.curve.setData(x=wavelengths, y=self.bckgnd_subtrd)
+
+    def set_ambient(self):
+        self.ambient_intensity[:] = copy.deepcopy(self.intensities)
+
+    def zero_ambient(self):
+        self.ambient_intensity[:] = 0.
 
     def step_right(self):
         # if motor is currently moving, just stop the motor.
@@ -783,7 +819,14 @@ class FrogLand:
 
             if self.spectrogram_runnable_exists:
                 self.stop_spectrogram_collection()
-                return
+
+            return
+
+        # if a motor runnable doesn't exist but a spectrogram
+        # runnable does, stop the spectrogram collection
+        elif self.spectrogram_runnable_exists:
+            self.stop_spectrogram_collection()
+
             return
 
         # set a limit on the step size to be 50 fs
@@ -810,8 +853,8 @@ class FrogLand:
 
             if self.spectrogram_runnable_exists:
                 self.stop_spectrogram_collection()
-                return
-            return
+
+            return "motor stopped"
 
         if not target_um:
             target_um = self.move_to_pos_um
@@ -875,7 +918,13 @@ class FrogLand:
 
             if self.spectrogram_runnable_exists:
                 self.stop_spectrogram_collection()
-                return
+
+            return
+
+        # if a motor runnable doesn't exist but a spectrogram
+        # runnable does, stop the spectrogram collection
+        elif self.spectrogram_runnable_exists:
+            self.stop_spectrogram_collection()
             return
 
         self.motor_runnable_exists = True
@@ -918,7 +967,9 @@ class FrogLand:
         # position
         else:
             try:
-                self.move_to_pos(self.start_pos_um)
+                stp_msg = self.move_to_pos(self.start_pos_um)
+                if stp_msg == "motor stopped":
+                    return
             except:
                 return
 
@@ -979,8 +1030,11 @@ class FrogLand:
         self.btn_collect_spectrogram.setText("Start \n Collection")
 
     def update_spectrogram_plot(self, X):
+        self.plot_update(X)
+
         wavelengths, intensities, n = X
-        self.spectrogram_array[n] = intensities
+        # self.spectrogram_array[n] = intensities
+        self.spectrogram_array[n] = self.bckgnd_subtrd
         self.plot2d_window.plotwidget.plot_image(self.spectrogram_array)
 
 
