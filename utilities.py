@@ -16,12 +16,14 @@ class Spectrometer:
         # spectrometer: spec.Spectrometer
         self.spectrometer = spectrometer
 
-        self._integration_time_micros = 1000  # 1ms
+        self._integration_time_micros = 30000
         # for some reason seabreeze doesn't have a "read integration time"
         # function, so initialize it to some value, and then set the actual
         # spectrometer setting to that value. From there
         # just keep track of it.
-        self.integration_time_micros = self._integration_time_micros
+
+        # now I have the Gui Controller set it upon initialization
+        # self.integration_time_micros = self._integration_time_micros
 
     def get_spectrum(self):
         """

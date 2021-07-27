@@ -24,7 +24,7 @@ tol_um = .03  # 30 nm
 backlash = 3.0  # um
 overshoot_for_backlash = False
 edge_limit_buffer_mm = 1e-3  # 1 um
-emulating = True
+emulating_spectrometer = False
 
 
 def dist_um_to_T_fs(value_um):
@@ -104,8 +104,8 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         # self.spectrometer = util.Spectrometer(spectrometer)
 
         self.motor_interface = MotorInterface(util.Motor(em.Motor()))
-        self.spectrometer = util.Spectrometer(em.Spectrometer())
-        # self.spectrometer = util.Spectrometer(snp.Spectrometer())
+        # self.spectrometer = util.Spectrometer(em.Spectrometer())
+        self.spectrometer = util.Spectrometer(snp.Spectrometer())
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)
@@ -149,6 +149,24 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
     def slot_for_tablewidget(self, row, col):
         if (row, col) == (0, 0):
+            if self.frog_land.spectrogram_runnable_exists:
+                raise_error(self.error_window,
+                            "stop spectrogram collection first")
+
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text
+                )
+                return
+
+            if self.frog_land.cont_update_runnable_exists:
+                raise_error(self.error_window,
+                            "stop spectrum update first")
+
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text
+                )
+                return
+
             int_time_ms = float(self.tableWidget.item(row, col).text())
             ll_us, ul_us = \
                 self.spectrometer.integration_time_micros_limit
@@ -753,6 +771,12 @@ class FrogLand:
             self.stop_spectrogram_collection()
             return
 
+        X = self.spectrometer.get_spectrum()
+        self.plot_update(X)
+        lims = np.array([0, max(self.intensities)])
+        self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
+                                             lims)
+
         self.cont_update_runnable_exists = True
 
         self.btn_start.setText("Stop \n Continuous Update")
@@ -763,9 +787,6 @@ class FrogLand:
 
         # start the continuous update
         pool.start(self.runnable_update_spectrum)
-
-        self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
-                                             np.array([0, 1]))
 
     def stop_continuous_update(self):
         # stop the continuous update
@@ -1009,6 +1030,15 @@ class FrogLand:
 
         self.spectrogram_array = np.zeros((npts_T, npts_wl))
 
+        if np.all(self.intensities == 0):
+            X = self.spectrometer.get_spectrum()
+            self.plot_update(X)
+            lims = np.array([0, max(self.intensities)])
+            self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
+                                                 lims)
+        # self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
+        #                                      np.array([0, 1]))
+
         # start the spectrogram collection
         self.spectrogram_runnable_exists = True
         self.create_runnable('spectrogram')
@@ -1018,8 +1048,6 @@ class FrogLand:
         # set up the 2d and 1d plots (set plot axis limits)
         self.btn_collect_spectrogram.setText("Stop \n Collection")
         self._setup_2dplot()
-        self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
-                                             np.array([0, 1]))
 
     def _setup_2dplot(self):
         self.wl_axis = self.spectrometer.wavelengths
@@ -1090,7 +1118,7 @@ class CollectSpectrogramRunnable(qtc.QRunnable):
 
             # TODO right now this is just so the GUI doesn't freeze up,
             #  you should remember to remove this for the actual program
-            if emulating:
+            if emulating_spectrometer:
                 sleep_time = self.spectrometer.integration_time_micros * 1e-6
                 time.sleep(sleep_time)
 
@@ -1156,7 +1184,7 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
             # TODO I don't know how fast it does this, so I'm telling it to
             #  sleep for .001 seconds. If it turns out that it already takes
             #  ~.001s to get the spectrum then you can delete this
-            if emulating:
+            if emulating_spectrometer:
                 sleep_time = self.spectrometer.integration_time_micros * 1e-6
                 time.sleep(sleep_time)
 
