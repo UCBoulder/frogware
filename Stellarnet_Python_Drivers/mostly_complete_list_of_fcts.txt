@@ -1,11 +1,17 @@
-print_info(self)
-set_config(self)
-get_device_id(self)
-compute_lambda(self, pixel)
-gain_baseline(self, mode, value)
-get_config(self)
-get_stored_bytes(self, address)
-get_stored_string(self, address)
-program_FIFO(self)
-read_spectrum(self)
-set_stored_bytes(self, address, data)
+methods for spectrometer['device']:
+
+    print_info(self)
+    set_config(self)
+    get_device_id(self)
+    compute_lambda(self, pixel)
+    gain_baseline(self, mode, value)
+    get_config(self)
+    get_stored_bytes(self, address)
+    get_stored_string(self, address)
+    program_FIFO(self)
+    read_spectrum(self)
+    set_stored_bytes(self, address, data)
+
+for other general methods under stellarnet_driver3 you can
+look at the webpage on stellarnet:
+https://www.stellarnet.us/software/spectrometer-python-application-driver/
