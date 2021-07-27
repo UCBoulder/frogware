@@ -19,7 +19,6 @@ import pandas
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
 pool = qtc.QThreadPool.globalInstance()
-
 # global variables
 tol_um = .03  # 30 nm
 backlash = 3.0  # um
@@ -797,7 +796,14 @@ class FrogLand:
             self.stop_motor()
             if self.spectrogram_runnable_exists:
                 self.stop_spectrogram_collection()
-                return
+
+            return
+
+        # if a motor runnable doesn't exist but a spectrogram
+        # runnable does, stop the spectrogram collection
+        elif self.spectrogram_runnable_exists:
+            self.stop_spectrogram_collection()
+
             return
 
         # set a limit on the step size to be 50 fs
