@@ -1,30 +1,27 @@
-import copy
-import threading
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
 import pandas as pd
-import stellarnet_peter as snp
 from Window import Ui_MainWindow
 import PlotAndTableFunctions as plotf
 import numpy as np
-import gc
 import utilities as util
 import time
 from Error import Ui_Form
 import PyQt5.QtGui as qtg
 import emulators as em
 from scipy.constants import c as c_mks
-import pandas
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
 pool = qtc.QThreadPool.globalInstance()
+
 # global variables
 tol_um = .03  # 30 nm
 backlash = 3.0  # um
 overshoot_for_backlash = False
 edge_limit_buffer_mm = 1e-3  # 1 um
 emulating_spectrometer = False
+emulating_motor = True
 
 
 def dist_um_to_T_fs(value_um):
@@ -103,9 +100,19 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         # spectrometer = seabreeze.spectrometers.list_devices()[0]
         # self.spectrometer = util.Spectrometer(spectrometer)
 
-        self.motor_interface = MotorInterface(util.Motor(em.Motor()))
-        # self.spectrometer = util.Spectrometer(em.Spectrometer())
-        self.spectrometer = util.Spectrometer(snp.Spectrometer())
+        if emulating_motor:
+            self.motor_interface = MotorInterface(util.Motor(em.Motor()))
+        else:
+            import thorlabs_apt as apt
+            serial_number = apt.list_available_devices()[1]
+            motor = apt.Motor(serial_number)
+            self.motor_interface = MotorInterface(util.Motor(motor))
+
+        if emulating_spectrometer:
+            self.spectrometer = util.Spectrometer(em.Spectrometer())
+        else:
+            import stellarnet_peter as snp
+            self.spectrometer = util.Spectrometer(snp.Spectrometer())
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)
@@ -1116,8 +1123,6 @@ class CollectSpectrogramRunnable(qtc.QRunnable):
             # step the index
             self.n += 1
 
-            # TODO right now this is just so the GUI doesn't freeze up,
-            #  you should remember to remove this for the actual program
             if emulating_spectrometer:
                 sleep_time = self.spectrometer.integration_time_micros * 1e-6
                 time.sleep(sleep_time)
@@ -1181,9 +1186,6 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
             # emit the spectrum as a signal
             self.progress.emit([wavelengths, intensities])
 
-            # TODO I don't know how fast it does this, so I'm telling it to
-            #  sleep for .001 seconds. If it turns out that it already takes
-            #  ~.001s to get the spectrum then you can delete this
             if emulating_spectrometer:
                 sleep_time = self.spectrometer.integration_time_micros * 1e-6
                 time.sleep(sleep_time)
