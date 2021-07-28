@@ -20,7 +20,7 @@ tol_um = .03  # 30 nm
 backlash = 3.0  # um
 overshoot_for_backlash = False
 edge_limit_buffer_mm = 1e-3  # 1 um
-emulating_spectrometer = False
+emulating_spectrometer = True
 emulating_motor = True
 
 
@@ -464,7 +464,6 @@ class FrogLand:
             # signal when the motor is finished moving
             # when finished moving, update the current position one more time
             self.runnable_update_motor.finished.connect(self.motor_finished)
-            self.runnable_update_motor.finished.connect(self.update_current_pos)
 
         elif string == "spectrogram":
             # spectrogram updates current position
@@ -1140,8 +1139,10 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self.started = self.signal.started
         self.progress = self.signal.progress
         self.finished = self.signal.finished
+        self._stop_initiated = False
 
     def stop(self):
+        self._stop_initiated = True
         self.motor_interface.motor.stop_motor()
 
     def run(self):
@@ -1151,7 +1152,9 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
             #  this sleep is necessary
             time.sleep(.001)
 
-        self.finished.emit(None)
+        self.progress.emit(None)
+        if not self._stop_initiated:
+            self.finished.emit(None)
 
 
 class UpdateSpectrumRunnable(qtc.QRunnable):
