@@ -104,7 +104,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
             self.motor_interface = MotorInterface(util.Motor(em.Motor()))
         else:
             import thorlabs_apt as apt
-            serial_number = apt.list_available_devices()[1]
+            serial_number = apt.list_available_devices()[0][1]
             motor = apt.Motor(serial_number)
             self.motor_interface = MotorInterface(util.Motor(motor))
 
