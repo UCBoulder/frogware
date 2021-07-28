@@ -23,6 +23,8 @@ edge_limit_buffer_mm = 1e-3  # 1 um
 emulating_spectrometer = True
 emulating_motor = False
 
+# some packages take time to import (namely thorlabs_apt), so import these
+# only if you are not emulating
 if not emulating_spectrometer:
     import stellarnet_peter as snp
 
@@ -904,12 +906,14 @@ class FrogLand:
         if not target_um:
             target_um = self.move_to_pos_um
 
+        # only retrieve the position once!
+        motor_pos_um = self.motor_interface.pos_um
         exceed = self.motor_interface.value_exceeds_limits(
-            target_um - self.motor_interface.pos_um)
+            target_um - motor_pos_um)
         if not exceed:
             self.btn_move_to_pos.setText("stop motion")
 
-            self.motor_interface.pos_um = target_um
+            motor_pos_um = target_um
 
             # create a runnable instance and connect the relevant signals and
             # slots
@@ -922,13 +926,14 @@ class FrogLand:
             raise RuntimeError("value exceeds motor limits")
 
     def update_current_pos(self, pos_um):
+        motor_pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
         self.lcd_current_pos_um.display('%.3f' % pos_um)
-        # self.lcd_current_pos_fs.display('%.3f' % self.motor_interface.pos_fs)
+        self.lcd_current_pos_fs.display('%.3f' % motor_pos_fs)
 
         self.lcd_current_pos_um_tab2.display(
             '%.3f' % pos_um)
-        # self.lcd_current_pos_fs_tab2.display(
-        #     '%.3f' % self.motor_interface.pos_fs)
+        self.lcd_current_pos_fs_tab2.display(
+            '%.3f' % motor_pos_fs)
 
     # stop_motor should send the stop_signal to the motor hardware
     # it will not set motor_runnable_exists to False, that will only
@@ -950,9 +955,10 @@ class FrogLand:
 
     def set_T0(self):
         # I think this ought to do it
-        self.T0_um = self.motor_interface.pos_um
+        motor_pos_um = self.motor_interface.pos_um
+        self.T0_um = motor_pos_um
         self.move_to_pos_fs = 0
-        self.update_current_pos(self.motor_interface.pos_um)
+        self.update_current_pos(motor_pos_um)
 
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
@@ -962,13 +968,9 @@ class FrogLand:
         # work like a toggle. So, if the runnable already exists, then
         # just stop the process and return.
         if self.motor_runnable_exists:
-            # raise_error(self.error_window, "stop the motor first!")
-            # return
             self.stop_motor()
-
             if self.spectrogram_runnable_exists:
                 self.stop_spectrogram_collection()
-
             return
 
         # if a motor runnable doesn't exist but a spectrogram
