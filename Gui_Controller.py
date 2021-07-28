@@ -913,7 +913,7 @@ class FrogLand:
         if not exceed:
             self.btn_move_to_pos.setText("stop motion")
 
-            motor_pos_um = target_um
+            self.motor_interface.pos_um = target_um
 
             # create a runnable instance and connect the relevant signals and
             # slots
@@ -978,14 +978,18 @@ class FrogLand:
 
         # if a motor runnable doesn't exist but a spectrogram
         # runnable does, stop the spectrogram collection
-        elif self.spectrogram_runnable_exists:
-            self.stop_spectrogram_collection()
-            return
+        # elif self.spectrogram_runnable_exists:
+        #     self.stop_spectrogram_collection()
+        #     return
 
         self.motor_interface.motor.home_motor(blocking=False)
 
         self.create_runnable('motor')
         self.connect_runnable('motor')
+        # it takes a sec for the motor to start moving when homing,
+        # so you to prevent an immediate motor finished flag, let it get going
+        # first.
+        time.sleep(.1)
         pool.start(self.runnable_update_motor)
 
         self.btn_home_stage.setText("stop homing")
@@ -1172,6 +1176,7 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
             #  this sleep is necessary
             time.sleep(.005)
 
+        # print("done moving!")
         pos = self.motor_interface.pos_um
         self.progress.emit(pos)
         self.finished.emit(None)
