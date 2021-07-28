@@ -21,7 +21,7 @@ backlash = 3.0  # um
 overshoot_for_backlash = False
 edge_limit_buffer_mm = 1e-3  # 1 um
 emulating_spectrometer = True
-emulating_motor = True
+emulating_motor = False
 
 if not emulating_spectrometer:
     import stellarnet_peter as snp
@@ -111,6 +111,9 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         else:
             serial_number = apt.list_available_devices()[0][1]
             motor = apt.Motor(serial_number)
+            param = list(motor.get_velocity_parameters())
+            param[-1] = 1.
+            motor.set_velocity_parameters(*param)
             self.motor_interface = MotorInterface(util.Motor(motor))
 
         if emulating_spectrometer:
@@ -394,7 +397,7 @@ class FrogLand:
         # update the display
         self.update_stepsize_from_le_um()
         self.update_stepsize_spectrogram_from_le_um()
-        self.update_current_pos()
+        self.update_current_pos(self.motor_interface.pos_um)
 
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
@@ -918,14 +921,14 @@ class FrogLand:
         else:
             raise RuntimeError("value exceeds motor limits")
 
-    def update_current_pos(self, *args):
-        self.lcd_current_pos_um.display('%.3f' % self.motor_interface.pos_um)
-        self.lcd_current_pos_fs.display('%.3f' % self.motor_interface.pos_fs)
+    def update_current_pos(self, pos_um):
+        self.lcd_current_pos_um.display('%.3f' % pos_um)
+        # self.lcd_current_pos_fs.display('%.3f' % self.motor_interface.pos_fs)
 
         self.lcd_current_pos_um_tab2.display(
-            '%.3f' % self.motor_interface.pos_um)
-        self.lcd_current_pos_fs_tab2.display(
-            '%.3f' % self.motor_interface.pos_fs)
+            '%.3f' % pos_um)
+        # self.lcd_current_pos_fs_tab2.display(
+        #     '%.3f' % self.motor_interface.pos_fs)
 
     # stop_motor should send the stop_signal to the motor hardware
     # it will not set motor_runnable_exists to False, that will only
@@ -949,7 +952,7 @@ class FrogLand:
         # I think this ought to do it
         self.T0_um = self.motor_interface.pos_um
         self.move_to_pos_fs = 0
-        self.update_current_pos()
+        self.update_current_pos(self.motor_interface.pos_um)
 
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
@@ -1158,12 +1161,14 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
 
     def run(self):
         while self.motor_interface.motor.is_in_motion:
-            self.progress.emit(None)
+            pos = self.motor_interface.pos_um
+            self.progress.emit(pos)
             # TODO test when you run the program whether
             #  this sleep is necessary
-            time.sleep(.001)
+            time.sleep(.005)
 
-        self.progress.emit(None)
+        pos = self.motor_interface.pos_um
+        self.progress.emit(pos)
         self.finished.emit(None)
 
 
