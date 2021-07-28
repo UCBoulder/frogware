@@ -964,11 +964,14 @@ class FrogLand:
         self.update_endpos_from_le_fs()
 
     def home_stage(self):
-        # I would like to have the home_stage button
+        # I would like to have the move_to_pos button
         # work like a toggle. So, if the runnable already exists, then
         # just stop the process and return.
         if self.motor_runnable_exists:
+            # raise_error(self.error_window, "stop the motor first!")
+            # return
             self.stop_motor()
+
             if self.spectrogram_runnable_exists:
                 self.stop_spectrogram_collection()
             return
