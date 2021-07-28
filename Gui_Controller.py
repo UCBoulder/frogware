@@ -23,6 +23,12 @@ edge_limit_buffer_mm = 1e-3  # 1 um
 emulating_spectrometer = True
 emulating_motor = True
 
+if not emulating_spectrometer:
+    import stellarnet_peter as snp
+
+if not emulating_motor:
+    import thorlabs_apt as apt
+
 
 def dist_um_to_T_fs(value_um):
     """
@@ -103,7 +109,6 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         if emulating_motor:
             self.motor_interface = MotorInterface(util.Motor(em.Motor()))
         else:
-            import thorlabs_apt as apt
             serial_number = apt.list_available_devices()[0][1]
             motor = apt.Motor(serial_number)
             self.motor_interface = MotorInterface(util.Motor(motor))
@@ -111,7 +116,6 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         if emulating_spectrometer:
             self.spectrometer = util.Spectrometer(em.Spectrometer())
         else:
-            import stellarnet_peter as snp
             self.spectrometer = util.Spectrometer(snp.Spectrometer())
 
     def connect_signals(self):
