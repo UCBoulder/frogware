@@ -39,7 +39,7 @@ class Motor:
         pool.start(self.runnable)
 
     def move_by(self, value_mm, blocking=False):
-        self._position += value_mm
+        self.move_to(self._position + value_mm)
 
     def move_home(self, blocking):
         self.move_to(0.)
