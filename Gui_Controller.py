@@ -553,14 +553,14 @@ class FrogLand:
         self.spectrogram_collection_instance.signal.finished.connect(
             self.spectrogram_finished)
 
-    """The fact that the Spectrogram Collection is not a runnable makes 
-    things slightly different.
+    """The fact that the Spectrogram Collection is not run on a separate 
+    thread makes things slightly different. 
 
     I found out that if you do not connect the signals in the Spectrogram
     Collection but instead do it in the Frogland class, then their
     slot functions are not called when the buttons are clicked. It appears
     this has to do with the fact that the SpectrogramCollection class
-    is not a runnable. 
+    is not executed on a separate thread.
 
     Lastly, if you leave the connections for these signals in this class,
     then there seems to be a conflict, where the buttons don't work
@@ -1169,10 +1169,8 @@ class CollectSpectrogram:
 
         # otherwise, flag that the spectrogram collection is done
         else:
-            # TODO pretty sure when not using the emulator this if statement
-            #  will not be necessary
-            if self.n < len(self.frogland.Taxis_fs):
-                self.emit_data()
+            # if self.n < len(self.frogland.Taxis_fs):
+            #     self.emit_data()
 
             self.signal.finished.emit(None)
 
