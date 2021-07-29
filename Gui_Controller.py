@@ -422,6 +422,7 @@ class FrogLand:
 
         self.spectrogram_array = None
         self.Taxis_fs = None
+        self.spectrogram_now_running = False
 
         self.ambient_intensity = np.zeros(len(self.spectrometer.wavelengths))
         self.intensities = np.zeros(len(self.spectrometer.wavelengths))
@@ -794,7 +795,12 @@ class FrogLand:
             self.stop_motor()
             return
 
-        # set a limit on the step size to be 50 fs
+        # if spectrogram is running, just stop the spectrogram
+        if self.spectrogram_now_running:
+            self.stop_spectrogram()
+            return
+
+        # set a limit on the step size to be ... fs
         if self.step_size_fs > self.step_size_max:
             raise_error(self.error_window, "step size cannot exceed 50 fs")
             return
@@ -815,6 +821,11 @@ class FrogLand:
             self.stop_motor()
             return
 
+        # if spectrogram is running, just stop the spectrogram
+        if self.spectrogram_now_running:
+            self.stop_spectrogram()
+            return
+
         # set a limit on the step size to be 50 fs
         if self.step_size_fs > self.step_size_max:
             raise_error(self.error_window, "step size cannot exceed 50 fs")
@@ -831,14 +842,14 @@ class FrogLand:
             return
 
     def move_to_pos(self, target_um=False):
-
-        # I would like to have the move_to_pos button
-        # work like a toggle. So, if the runnable already exists, then
-        # just stop the process and return.
+        # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists:
-            # raise_error(self.error_window, "stop the motor first!")
-            # return
             self.stop_motor()
+            return
+
+        # if spectrogram is running, just stop the spectrogram
+        if self.spectrogram_now_running:
+            self.stop_spectrogram()
             return
 
         if not target_um:
@@ -902,13 +913,14 @@ class FrogLand:
         self.update_endpos_from_le_fs()
 
     def home_stage(self):
-        # I would like to have the move_to_pos button
-        # work like a toggle. So, if the runnable already exists, then
-        # just stop the process and return.
+        # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists:
-            # raise_error(self.error_window, "stop the motor first!")
-            # return
             self.stop_motor()
+            return
+
+        # if spectrogram is running, just stop the spectrogram
+        if self.spectrogram_now_running:
+            self.stop_spectrogram()
             return
 
         self.motor_interface.motor.home_motor(blocking=False)
@@ -926,9 +938,33 @@ class FrogLand:
     def collect_spectrogram(self,
                             *args,
                             overshoot_for_backlash=overshoot_for_backlash):
-        pass
 
-    def _continue_spectrogram_collection(self):
+        # if motor is in motion, stop the motor
+        if self.motor_runnable_exists:
+            self.stop_motor()
+            return
+
+        # if spectrogram is running, stop the spectrogram
+        if self.spectrogram_now_running:
+            self.stop_spectrogram()
+            return
+
+        # also need access to spectrometer, so stop the spectrum update
+        # but we're just stopping it (don't return)
+        if self.cont_update_runnable_exists:
+            self.stop_continuous_update()
+            pass
+
+        # self.move_to_pos(self.start_pos_um)
+        # self.create_runnable('motor')
+        # self.connect_runnable('motor')
+        # pool.start()
+
+    def stop_spectrogram(self):
+        self.spectrogram_now_running = False
+        return
+
+    def _prep_spectrogram_collection(self):
         # define the time and wavelength axis for 2d plot update
         self.Taxis_fs = np.arange(self.motor_interface.pos_fs, self.end_pos_fs,
                                   self.step_size_fs_spectrogram)
@@ -943,14 +979,12 @@ class FrogLand:
             lims = np.array([0, max(self.intensities)])
             self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
                                                  lims)
-        # self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
-        #                                      np.array([0, 1]))
 
         # set up the 2d and 1d plots (set plot axis limits)
         self.btn_collect_spectrogram.setText("Stop \n Collection")
         self._setup_2dplot()
 
-    def _setup_2dplot(self):
+    def _setup_2d_plot(self):
         self.wl_axis = self.spectrometer.wavelengths
         self.plot2d_window.plotwidget.setup_2dplot(x=self.Taxis_fs,
                                                    y=self.wl_axis,
