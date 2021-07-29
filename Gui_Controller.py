@@ -166,7 +166,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
     def slot_for_tablewidget(self, row, col):
         if (row, col) == (0, 0):
-            if self.frog_land.spectrogram_runnable_exists:
+            if self.frog_land.spectrogram_now_running:
                 raise_error(self.error_window,
                             "stop spectrogram collection first")
 
@@ -298,7 +298,6 @@ class MotorInterface:
 
         if (predicted_pos_um < min_limit_um + buffer_um) or (
                 predicted_pos_um > max_limit_um - buffer_um):
-            # print("I raised an error!")
             raise_error(self.error_window,
                         "too close to stage limits (within 1um)")
             return True
@@ -553,6 +552,62 @@ class FrogLand:
             self.update_spectrogram_plot)
         self.spectrogram_collection_instance.signal.finished.connect(
             self.spectrogram_finished)
+
+    """The fact that the Spectrogram Collection is not a runnable makes 
+    things slightly different.
+
+    I found out that if you do not connect the signals in the Spectrogram
+    Collection but instead do it in the Frogland class, then their
+    slot functions are not called when the buttons are clicked. It appears
+    this has to do with the fact that the SpectrogramCollection class
+    is not a runnable. 
+
+    Lastly, if you leave the connections for these signals in this class,
+    then there seems to be a conflict, where the buttons don't work
+    although their slot functions are called when you click on them. 
+
+    As a result, I disconnect them here whenever running the spectrogram
+    and re-connect them later."""
+
+    def disconnect_for_spectrogram(self):
+        # if the start continuous update button is pressed start the
+        # continuous update
+        self.btn_start.clicked.disconnect(self.start_continuous_update)
+
+        # disconnect the home stage button
+        self.btn_home_stage.clicked.disconnect(self.home_stage)
+
+        # disconnect the step left and step right buttons
+        self.btn_step_left.clicked.disconnect(self.step_left)
+        self.btn_step_right.clicked.disconnect(self.step_right)
+
+        # disconnect the move_to_pos button (can disconnect to move_to_pos_um or
+        # move_to_pos_fs)
+        self.btn_move_to_pos.clicked.disconnect(self.move_to_pos)
+
+        # disconnect the collect spectrogram button
+        self.btn_collect_spectrogram.clicked.disconnect(
+            self.collect_spectrogram)
+
+    def reconnect_for_spectrogram(self):
+        # if the start continuous update button is pressed start the
+        # continuous update
+        self.btn_start.clicked.connect(self.start_continuous_update)
+
+        # connect the home stage button
+        self.btn_home_stage.clicked.connect(self.home_stage)
+
+        # connect the step left and step right buttons
+        self.btn_step_left.clicked.connect(self.step_left)
+        self.btn_step_right.clicked.connect(self.step_right)
+
+        # connect the move_to_pos button (can connect to move_to_pos_um or
+        # move_to_pos_fs)
+        self.btn_move_to_pos.clicked.connect(self.move_to_pos)
+
+        # connect the collect spectrogram button
+        self.btn_collect_spectrogram.clicked.connect(
+            self.collect_spectrogram)
 
     def stop_all_runnables(self):
         if self.motor_runnable_exists:
@@ -833,13 +888,6 @@ class FrogLand:
             self.stop_motor()
             return
 
-        # if spectrogram is running and it was
-        # not called by the spectrogram collection, just stop the spectrogram
-        if not ignore_spectrogram:
-            if self.spectrogram_now_running:
-                self.stop_spectrogram()
-                return
-
         # set a limit on the step size to be ... fs
         if self.step_size_fs > self.step_size_max:
             raise_error(self.error_window, "step size cannot exceed 50 fs")
@@ -868,13 +916,6 @@ class FrogLand:
             self.stop_motor()
             return
 
-        # if spectrogram is running and it was
-        # not called by the spectrogram collection, just stop the spectrogram
-        if not ignore_spectrogram:
-            if self.spectrogram_now_running:
-                self.stop_spectrogram()
-                return
-
         # set a limit on the step size to be ... fs
         if self.step_size_fs > self.step_size_max:
             raise_error(self.error_window, "step size cannot exceed 50 fs")
@@ -896,11 +937,6 @@ class FrogLand:
             self.stop_motor()
             return
 
-        # if spectrogram is running, just stop the spectrogram
-        if self.spectrogram_now_running:
-            self.stop_spectrogram()
-            return
-
         if not target_um:
             target_um = self.move_to_pos_um
 
@@ -919,7 +955,7 @@ class FrogLand:
             self.connect_runnable('motor')
             pool.start(self.runnable_update_motor)
         else:
-            raise RuntimeError("value exceeds motor limits")
+            return
 
     def update_current_pos(self, pos_um):
         motor_pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
@@ -970,11 +1006,6 @@ class FrogLand:
             self.stop_motor()
             return
 
-        # if spectrogram is running, just stop the spectrogram
-        if self.spectrogram_now_running:
-            self.stop_spectrogram()
-            return
-
         self.motor_interface.motor.home_motor(blocking=False)
 
         self.create_runnable('motor')
@@ -996,31 +1027,20 @@ class FrogLand:
             self.stop_motor()
             return
 
-        # if spectrogram is running, stop the spectrogram
-        if self.spectrogram_now_running:
-            self.stop_spectrogram()
-            return
-
-        # also need access to spectrometer, so stop the spectrum update
-        # but we're just stopping it (don't return)
-        if self.cont_update_runnable_exists:
-            self.stop_continuous_update()
-            pass
-
         self.move_to_pos(self.start_pos_um)
         self.runnable_update_motor.finished.connect(self._check_if_at_start)
-
-    def stop_spectrogram(self):
-        print("stop spectrogram fct called")
-        self.spectrogram_now_running = False
-        self.spectrogram_collection_instance.stop()
-        self.btn_collect_spectrogram.setText("Collect \n Spectrogram")
 
     def spectrogram_finished(self):
         self.spectrogram_now_running = False
         self.btn_collect_spectrogram.setText("Collect \n Spectrogram")
+        self.reconnect_for_spectrogram()
 
     def _start_spectrogram_collection(self):
+        # we need access to spectrometer, so stop the spectrum update
+        # but we're just stopping it (don't return)
+        if self.cont_update_runnable_exists:
+            self.stop_continuous_update()
+
         self.spectrogram_now_running = True
         self.spectrogram_collection_instance.start()
 
@@ -1080,6 +1100,22 @@ class CollectSpectrogram:
         self.n = 0
         self._stop = False
 
+    def connect_signals(self):
+        self.frogland.btn_collect_spectrogram.clicked.connect(self.stop)
+        self.frogland.btn_step_left.clicked.connect(self.stop)
+        self.frogland.btn_step_right.clicked.connect(self.stop)
+        self.frogland.btn_move_to_pos.clicked.connect(self.stop)
+        self.frogland.btn_home_stage.clicked.connect(self.stop)
+        self.frogland.btn_start.clicked.connect(self.stop)
+
+    def disconnect_signals(self):
+        self.frogland.btn_collect_spectrogram.clicked.disconnect(self.stop)
+        self.frogland.btn_step_left.clicked.disconnect(self.stop)
+        self.frogland.btn_step_right.clicked.disconnect(self.stop)
+        self.frogland.btn_move_to_pos.clicked.disconnect(self.stop)
+        self.frogland.btn_home_stage.clicked.disconnect(self.stop)
+        self.frogland.btn_start.clicked.disconnect(self.stop)
+
     @property
     def step_um(self):
         return self.frogland.step_size_um_spectrogram
@@ -1089,30 +1125,41 @@ class CollectSpectrogram:
         return self.frogland.end_pos_um
 
     def stop(self):
-        print("set spectrogram stop flag to True")
-        self._stop = True
+        if self.frogland.spectrogram_now_running:
+            self._stop = True
+
+        else:
+            return
 
     def start(self):
         # re-initialize the spectrogram collection index
         self.n = 0
 
+        self.frogland.disconnect_for_spectrogram()
+        self.connect_signals()
+
         # begin the collection
         self.step_one()
+
+    def emit_data(self):
+        # collect spectrum
+        wavelengths, intensities = self.spectrometer.get_spectrum()
+        self.signal.progress.emit((wavelengths, intensities, self.n))
+        print(self.n + 1, len(self.frogland.Taxis_fs))
 
     def step_one(self):
         # check the stop flag, if it is true,
         # toggle it back to false and return
         if self._stop:
-            print("Stopping Spectrogram")
             self._stop = False
+            self.disconnect_signals()
+            self.signal.finished.emit(None)
             return
 
         # if we are not at the end of the spectrogram range
         # then collect a spectrum and step the motor
         elif self.motor_interface.pos_um <= self.end_pos_um:
-            # collect spectrum
-            wavelengths, intensities = self.spectrometer.get_spectrum()
-            self.signal.progress.emit((wavelengths, intensities, self.n))
+            self.emit_data()
 
             # step the motor
             self.frogland.step_right(step_size_um=self.step_um,
@@ -1122,16 +1169,16 @@ class CollectSpectrogram:
 
         # otherwise, flag that the spectrogram collection is done
         else:
+            # TODO pretty sure when not using the emulator this if statement
+            #  will not be necessary
             if self.n < len(self.frogland.Taxis_fs):
-                wavelengths, intensities = self.spectrometer.get_spectrum()
-                self.signal.progress.emit((wavelengths, intensities, self.n))
+                self.emit_data()
 
             self.signal.finished.emit(None)
 
     def step_two(self):
-        # increment spectrogram collection index
+        # increment spectrogram collection index, and iterate again
         self.n += 1
-
         self.step_one()
 
 
@@ -1155,9 +1202,8 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         while self.motor_interface.motor.is_in_motion:
             pos = self.motor_interface.pos_um
             self.progress.emit(pos)
-            time.sleep(.005)
+            time.sleep(.001)
 
-        # print("done moving!")
         pos = self.motor_interface.pos_um
         self.progress.emit(pos)
         self.finished.emit(None)
