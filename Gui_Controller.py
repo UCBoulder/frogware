@@ -552,6 +552,8 @@ class FrogLand:
             self.update_spectrogram_plot)
         self.spectrogram_collection_instance.signal.finished.connect(
             self.spectrogram_finished)
+        self.actionStop.triggered.connect(
+            self.spectrogram_collection_instance.stop)
 
     """The fact that the Spectrogram Collection is not run on a separate 
     thread makes things slightly different. 
