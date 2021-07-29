@@ -199,7 +199,7 @@
                  <item>
                   <widget class="QPushButton" name="btn_home_stage">
                    <property name="text">
-                    <string>home the stage</string>
+                    <string>home stage</string>
                    </property>
                   </widget>
                  </item>

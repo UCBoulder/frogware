@@ -463,7 +463,7 @@ class Ui_MainWindow(object):
         self.label.setText(_translate("MainWindow", "step size (um)"))
         self.le_step_size_um.setText(_translate("MainWindow", ".03"))
         self.label_2.setText(_translate("MainWindow", "step size (fs)"))
-        self.btn_home_stage.setText(_translate("MainWindow", "home the stage"))
+        self.btn_home_stage.setText(_translate("MainWindow", "home stage"))
         self.btn_move_to_pos.setText(_translate("MainWindow", "move to position"))
         self.label_3.setText(_translate("MainWindow", "position (um)"))
         self.label_4.setText(_translate("MainWindow", "position (fs)"))
