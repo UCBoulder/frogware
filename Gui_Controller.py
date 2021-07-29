@@ -1010,13 +1010,14 @@ class FrogLand:
 
         self.create_runnable('motor')
         self.connect_runnable('motor')
+        pool.start(self.runnable_update_motor)
+
+        self.btn_home_stage.setText("stop homing")
+
         # it takes a sec for the motor to start moving when homing,
         # so you to prevent an immediate motor finished flag, let it get going
         # first.
         time.sleep(.1)
-        pool.start(self.runnable_update_motor)
-
-        self.btn_home_stage.setText("stop homing")
 
     def collect_spectrogram(self,
                             *args,
