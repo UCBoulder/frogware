@@ -17,12 +17,13 @@ import gc
 pool = qtc.QThreadPool.globalInstance()
 
 # global variables
-tol_um = .03  # 30 nm
+tol_um = 0.1  # 100 nm
 backlash = 3.0  # um
 overshoot_for_backlash = False
 edge_limit_buffer_mm = 1e-3  # 1 um
 emulating_spectrometer = True
-emulating_motor = True
+emulating_motor = False
+port = "COM4"
 
 # some packages take time to import (namely thorlabs_apt), so import these
 # only if you are not emulating
@@ -30,7 +31,8 @@ if not emulating_spectrometer:
     import stellarnet_peter as snp
 
 if not emulating_motor:
-    import thorlabs_apt as apt
+    # import thorlabs_apt as apt
+    import MotorClassFromAptProtocolConnor as apt
 
 
 def dist_um_to_T_fs(value_um):
@@ -112,11 +114,14 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         if emulating_motor:
             self.motor_interface = MotorInterface(util.Motor(em.Motor()))
         else:
-            serial_number = apt.list_available_devices()[0][1]
-            motor = apt.Motor(serial_number)
-            param = list(motor.get_velocity_parameters())
-            param[-1] = 1.
-            motor.set_velocity_parameters(*param)
+            # serial_number = apt.list_available_devices()[0][1]
+            # motor = apt.Motor(serial_number)
+            # param = list(motor.get_velocity_parameters())
+            # param[-1] = 1.
+            # motor.set_velocity_parameters(*param)
+            # self.motor_interface = MotorInterface(util.Motor(motor))
+
+            motor = apt.KDC101(port)
             self.motor_interface = MotorInterface(util.Motor(motor))
 
         if emulating_spectrometer:
@@ -1019,7 +1024,7 @@ class FrogLand:
         # it takes a sec for the motor to start moving when homing,
         # so you to prevent an immediate motor finished flag, let it get going
         # first.
-        time.sleep(.1)
+        # time.sleep(.1)
 
     def collect_spectrogram(self,
                             *args,
@@ -1197,13 +1202,15 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
 
     def stop(self):
         self._stop_initiated = True
-        self.motor_interface.motor.stop_motor()
+        # self.motor_interface.motor.stop_motor()
 
     def run(self):
         while self.motor_interface.motor.is_in_motion:
+            if self._stop_initiated:
+                self.motor_interface.motor.stop_motor()
             pos = self.motor_interface.pos_um
             self.progress.emit(pos)
-            time.sleep(.001)
+            # time.sleep(.001)
 
         pos = self.motor_interface.pos_um
         self.progress.emit(pos)
