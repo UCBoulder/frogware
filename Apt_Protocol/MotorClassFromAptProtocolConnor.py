@@ -1,5 +1,7 @@
 import APT as apt
 import struct
+from APT import _auto_connect
+import numpy as np
 
 
 class KDC101(apt.KDC101_PRM1Z8):
@@ -8,8 +10,15 @@ class KDC101(apt.KDC101_PRM1Z8):
 
     @property
     def is_in_motion(self):
-        status = self.status()
-        return not status["flags"]["settled"]
+        status = self.status()["flags"]
+        to_check = [
+            status["moving forward"],
+            status["moving reverse"],
+            status["jogging forward"],
+            status["jogging reverse"],
+            status["homing"]
+        ]
+        return np.any(to_check)
 
     @property
     def position(self):
@@ -27,11 +36,11 @@ class KDC101(apt.KDC101_PRM1Z8):
         self.move_relative(value_mm)
 
     def move_home(self, blocking):
-        self.home()
+        self.home(True)
 
+    @_auto_connect
     def stop_profiled(self):
-        write_buffer = struct.pack("<BBBBBB", 0x66, 0x04, 0x0E, 0x02, self.dst,
+        write_buffer = struct.pack("<BBBBBB", 0x65, 0x04, 0x01, 0x02,
+                                   self.dst,
                                    self.src)
         self.write(write_buffer)
-
-
