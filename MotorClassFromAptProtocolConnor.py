@@ -39,7 +39,7 @@ class AptMotor(apt.KDC101_PRM1Z8):
         # MGMSG_MOT_MOVE_RELATIVE
         write_buffer = struct.pack("<BBBBBBHl", 0x48, 0x04,
                                    0x06, 0x00,
-                                   self.dst|0x80, self.src,
+                                   self.dst | 0x80, self.src,
                                    0x0001, enc_cnt)
         self.write(write_buffer)
 
@@ -90,6 +90,3 @@ class KDC101(AptMotor):
 
     def get_stage_axis_info(self):
         return 0., 25., "mm", None
-
-
-# m = KDC101('COM4')
