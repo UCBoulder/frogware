@@ -869,7 +869,7 @@ class FrogLand:
         # the signal should emit wavelengths and intensities, the spectrogram
         # signal will emit also an integer which we ignore here
         wavelengths, intensities, *_ = X
-        self.intensities = intensities
+        self.intensities[:] = intensities[:]
         # set the data to the new spectrum
         self.bckgnd_subtrd = intensities - self.ambient_intensity
         self.bckgnd_subtrd = np.where(self.bckgnd_subtrd > 0.,
