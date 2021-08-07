@@ -18,8 +18,8 @@ pool = qtc.QThreadPool.globalInstance()
 
 # global variables
 tol_um = 0.1  # 100 nm
-backlash = 3.0  # um
 overshoot_for_backlash = False
+backlash = 3.0  # um
 edge_limit_buffer_mm = 1e-3  # 1 um
 emulating_spectrometer = True
 emulating_motor = True
@@ -422,7 +422,7 @@ class FrogLand:
         # backlash distance: 3 micon
         # I believe it's rated to be <3 micron, so I think this should do it
         # maybe it's not needed at all...
-        self.backlash = 3.0
+        self.backlash = backlash
 
         # step size limit
         # self.step_size_max = 50.
@@ -1061,8 +1061,11 @@ class FrogLand:
             self._start_spectrogram_collection()
 
     def _prep_spectrogram(self):
-        # if your step is large, or your translation stage steps perfectly,
-        # then you can swap out the commented sectios
+        """
+        if your step is large, or your translation stage steps perfectly,
+        then you can swap out the commented sections (along with the one
+        in update_spectrogram_plot)
+        """
 
         # # define the time and wavelength axis for 2d plot update
         # self.Taxis_fs = np.arange(self.motor_interface.pos_fs,
@@ -1108,6 +1111,12 @@ class FrogLand:
         self.plot2d_window.format_to_xy_data(self.Taxis_fs, self.wl_axis)
 
     def update_spectrogram_plot(self, X):
+        """
+        if your step is large, or your translation stage steps perfectly,
+        then you can swap out the commented sections (along with the one
+        in _prep_spectrogram)
+        """
+
         # self.plot_update(X)
         # wavelengths, intensities, n, pos_fs = X
         #
