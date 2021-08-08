@@ -9,13 +9,13 @@ import scipy.constants as sc
 pool = qtc.QThreadPool.globalInstance()
 
 # global variables
-step_size_mm = 30e-9 * 1e3  # 30 nm
-sleep_time = .001 # 1ms
+# step_size_mm = 30e-9 * 1e3  # 30 nm
+step_size_mm = 7.49481145e-09 * 1e3 / 2
+sleep_time = .00005  # 1ms
 
 
 class Motor:
     def __init__(self):
-
         # this is arbitrary, when not using the emulator, it will be the
         # current position of the motor when one starts the program
         self._position = 5

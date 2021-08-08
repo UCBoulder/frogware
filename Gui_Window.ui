@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1036</width>
-    <height>667</height>
+    <height>698</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -32,9 +32,9 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout">
         <item row="0" column="0">
-         <layout class="QHBoxLayout" name="horizontalLayout_34">
+         <layout class="QHBoxLayout" name="horizontalLayout_16">
           <item>
-           <layout class="QVBoxLayout" name="verticalLayout_26">
+           <layout class="QVBoxLayout" name="verticalLayout_13">
             <item>
              <spacer name="verticalSpacer_5">
               <property name="orientation">
@@ -53,10 +53,10 @@
               <property name="maximumSize">
                <size>
                 <width>243</width>
-                <height>454</height>
+                <height>485</height>
                </size>
               </property>
-              <layout class="QVBoxLayout" name="verticalLayout_25">
+              <layout class="QVBoxLayout" name="verticalLayout_11">
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_33">
                  <item>
@@ -199,7 +199,7 @@
                  <item>
                   <widget class="QPushButton" name="btn_home_stage">
                    <property name="text">
-                    <string>home the stage</string>
+                    <string>home stage</string>
                    </property>
                   </widget>
                  </item>
