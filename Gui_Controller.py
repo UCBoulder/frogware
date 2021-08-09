@@ -11,6 +11,9 @@ import PyQt5.QtGui as qtg
 import emulators as em
 from scipy.constants import c as c_mks
 import gc
+import sys
+
+sys.path.append("Stellarnet_Python_Drivers/")
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
@@ -21,8 +24,8 @@ tol_um = 0.1  # 100 nm
 overshoot_for_backlash = False
 backlash = 3.0  # um
 edge_limit_buffer_mm = 1e-3  # 1 um
-emulating_spectrometer = True
-emulating_motor = True
+emulating_spectrometer = False
+emulating_motor = False
 port = "COM4"
 
 # some packages take time to import (namely thorlabs_apt), so import these
