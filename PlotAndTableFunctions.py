@@ -182,14 +182,6 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
         self.xmin, self.xmax = 0., 1.
         self.ymin, self.ymax = 0., 1.
 
-        # Testing... IT WORKS!
-        # self.set_xlabel("x")
-        # self.set_ylabel("y")
-        # self.set_xmin(-1)
-        # self.set_ymin(-1)
-        # self.set_xmax(2)
-        # self.set_ymax(2)
-
     def set_xlabel(self, label):
         self.PlotItem.getAxis('bottom').setLabel(label)
 
@@ -212,15 +204,15 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
         self.PlotItem.setYRange(self.ymin, ymax)
         self.ymax = ymax
 
-    def setup_2dplot(self, x=np.array([0, 1]), y=np.array([0, 1]),
-                     cmap='cividis', format='xy'):
+    def set_cmap(self, cmap='jet'):
+        _, lut = get_colormap(cmap)
+        self.ii.setLookupTable(lut)
+
+    def scale_axes(self, x=np.array([0, 1]), y=np.array([0, 1]), format='xy'):
 
         # reset the transformation or else each time you collect a spectrogram
         # it shrinks the plot
         self.ii.resetTransform()
-
-        _, lut = get_colormap(cmap)
-        self.ii.setLookupTable(lut)
 
         xlims, ylims = x[[0, -1]], y[[0, -1]]
         x0, y0 = xlims[0], ylims[0]
