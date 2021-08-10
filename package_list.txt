@@ -2,21 +2,24 @@ You must be using Python 3.8.
 Run the following command in Anaconda command prompt after installing
 Anaconda or Miniconda:
 
-conda create --name frogenv python=3.8 numpy scipy pyqtgraph pandas
+conda create --name frogenv python=3.8 numpy scipy pyqtgraph pandas pyserial
 
 conda activate frogenv
 pip install pyusb==1.0.0b1
 
-Then download the thorlabs_apt package as a zip file from its github page:
-https://github.com/qpit/thorlabs_apt
-cd into its directory then run:
+Then install the Stellarnet Driver and Software according to their instructions.
+The instructions and installation executables are all on their USB drive.
+Install lib-usb-filter (also in their USB drive), and install the filter
+for the Stellarnet Spectrometer.
 
-conda activate frogenv
-python setup.py install
+Realize that you will have to uninstall and re-install the filter for the
+Stellarnet Spectrometer whenever you switch USB ports on the computer.
 
-Then install the Thorlabs Apt software from thorlabs:
-https://www.thorlabs.com/software_pages/ViewSoftwarePage.cfm?Code=Motion_Control&viewtab=1
-Locate the Apt software installation directory in C:\Programs and copy the Apt.dll
-file into the same folder as the thorlabs_apt package installation folder.
-You should be able to find the thorlabs_apt package installation folder under:
-C:\Users\username\Miniconda3\envs\frogenv\Lib\site-packages\
+Install the Apt software for the K-cube from thorlabs.com. Under device manager,
+locate the apt device. Right click it, and click on properties. Check the
+option to enable its virtual communication port (VCP). Then unplug and re-plug
+the apt device into the computer's usb port.
+
+In the Gui_Controller code, change the port variable to be the COM port that
+the apt device is connected to. You can see this under COM and LPT ports in
+device manager.

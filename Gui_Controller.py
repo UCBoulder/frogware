@@ -1064,12 +1064,6 @@ class FrogLand:
             self._start_spectrogram_collection()
 
     def _prep_spectrogram(self):
-        """
-        if your step is large, or your translation stage steps perfectly,
-        then you can swap out the commented sections (along with the one
-        in update_spectrogram_plot)
-        """
-
         if np.all(self.intensities == 0):
             X = self.spectrometer.get_spectrum()
             self.plot_update(X)
@@ -1092,12 +1086,6 @@ class FrogLand:
         self.plot2d_window.format_to_xy_data(self.Taxis_fs, self.wl_axis)
 
     def update_spectrogram_plot(self, X):
-        """
-        if your step is large, or your translation stage steps perfectly,
-        then you can swap out the commented sections (along with the one
-        in _prep_spectrogram)
-        """
-
         self.plot_update(X)
         wavelengths, intensities, n, pos_fs = X
 
