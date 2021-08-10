@@ -18,7 +18,7 @@ class Motor:
     def __init__(self):
         # this is arbitrary, when not using the emulator, it will be the
         # current position of the motor when one starts the program
-        self._position = 5
+        self._position = 5.45
         self.is_in_motion = False
         self._stop = False
 

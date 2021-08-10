@@ -24,8 +24,8 @@ tol_um = 0.1  # 100 nm
 overshoot_for_backlash = False
 backlash = 3.0  # um
 edge_limit_buffer_mm = 1e-3  # 1 um
-emulating_spectrometer = False
-emulating_motor = False
+emulating_spectrometer = True
+emulating_motor = True
 port = "COM11"
 
 # some packages take time to import (namely thorlabs_apt), so import these
@@ -414,6 +414,8 @@ class FrogLand:
 
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
+
+        self.set_T0(T0_um=self.read_T0_from_file())
 
         # do runnables already exist
         self.cont_update_runnable_exists = False
@@ -1000,15 +1002,46 @@ class FrogLand:
         self.btn_move_to_pos.setText("move to position")
         self.btn_home_stage.setText("home stage")
 
-    def set_T0(self):
-        # I think this ought to do it
-        motor_pos_um = self.motor_interface.pos_um
-        self.T0_um = motor_pos_um
-        self.move_to_pos_fs = 0
-        self.update_current_pos(motor_pos_um)
+    def set_T0(self, *args, T0_um=None):
+        if T0_um is None:
+            # read the motor position
+            motor_pos_um = self.motor_interface.pos_um
 
-        self.update_startpos_from_le_fs()
-        self.update_endpos_from_le_fs()
+            # set T0 position to current motor position
+            self.T0_um = motor_pos_um
+
+            # set the move to position to 0
+            self.move_to_pos_fs = 0
+
+            # update the line edits
+            self.update_current_pos(motor_pos_um)
+            self.update_startpos_from_le_fs()
+            self.update_endpos_from_le_fs()
+
+            # write the new T0 to file
+            self.write_T0_to_file(self.T0_um)
+
+        else:
+            # set T0 position to current motor position
+            self.T0_um = T0_um
+
+            # set the move to position to 0
+            self.move_to_pos_fs = 0
+
+            # read the motor position
+            motor_pos_um = self.motor_interface.pos_um
+
+            # update the line edits
+            self.update_current_pos(motor_pos_um)
+            self.update_startpos_from_le_fs()
+            self.update_endpos_from_le_fs()
+
+    def read_T0_from_file(self):
+        return np.loadtxt("T0_um.txt")
+
+    def write_T0_to_file(self, T0_um):
+        with open("T0_um.txt", "w") as file:
+            file.write(str(T0_um))
 
     def home_stage(self):
         # if motor is currently moving, just stop the motor.
