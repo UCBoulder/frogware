@@ -441,6 +441,8 @@ class FrogLand:
         self.intensities = np.zeros(len(self.spectrometer.wavelengths))
         self.bckgnd_subtrd = np.zeros(len(self.spectrometer.wavelengths))
 
+        self.curr_mot_pos_um = None
+
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
     # re-initialized every time
@@ -953,7 +955,7 @@ class FrogLand:
             target_um = self.move_to_pos_um
 
         # only retrieve the position once!
-        motor_pos_um = self.motor_interface.pos_um
+        motor_pos_um = self.curr_mot_pos_um
         exceed = self.motor_interface.value_exceeds_limits(
             target_um - motor_pos_um)
         if not exceed:
@@ -970,6 +972,7 @@ class FrogLand:
             return
 
     def update_current_pos(self, pos_um):
+        self.curr_mot_pos_um = pos_um
         motor_pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
         self.lcd_current_pos_um.display('%.3f' % pos_um)
         self.lcd_current_pos_fs.display('%.3f' % motor_pos_fs)
@@ -1005,7 +1008,7 @@ class FrogLand:
     def set_T0(self, *args, T0_um=None):
         if T0_um is None:
             # read the motor position
-            motor_pos_um = self.motor_interface.pos_um
+            motor_pos_um = self.curr_mot_pos_um
 
             # set T0 position to current motor position
             self.T0_um = motor_pos_um
@@ -1018,7 +1021,7 @@ class FrogLand:
             self.T0_um = T0_um
 
             # read the motor position
-            motor_pos_um = self.motor_interface.pos_um
+            motor_pos_um = self.curr_mot_pos_um
 
         # set the move to position to 0
         self.move_to_pos_fs = 0
@@ -1081,7 +1084,7 @@ class FrogLand:
         self.spectrogram_collection_instance.start()
 
     def _check_if_at_start(self):
-        if abs(self.motor_interface.pos_um - self.start_pos_um) > tol_um:
+        if abs(self.curr_mot_pos_um - self.start_pos_um) > tol_um:
             return
 
         else:
@@ -1199,7 +1202,7 @@ class CollectSpectrogram:
         # if we are not at the end of the spectrogram range
         # then collect a spectrum and step the motor
         else:
-            pos_um = self.motor_interface.pos_um
+            pos_um = self.frogland.curr_mot_pos_um
 
             pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
             print("point", self.n + 1, ", ", self.end_pos_fs - pos_fs,
