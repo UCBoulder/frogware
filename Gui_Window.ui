@@ -152,7 +152,7 @@
                        </size>
                       </property>
                       <property name="text">
-                       <string>.03</string>
+                       <string/>
                       </property>
                      </widget>
                     </item>
@@ -172,7 +172,7 @@
                        </size>
                       </property>
                       <property name="text">
-                       <string/>
+                       <string>1</string>
                       </property>
                      </widget>
                     </item>
@@ -656,7 +656,7 @@
                     </size>
                    </property>
                    <property name="text">
-                    <string>.03</string>
+                    <string/>
                    </property>
                   </widget>
                  </item>
@@ -676,7 +676,7 @@
                     </size>
                    </property>
                    <property name="text">
-                    <string/>
+                    <string>2</string>
                    </property>
                   </widget>
                  </item>
@@ -719,7 +719,7 @@
                       </size>
                      </property>
                      <property name="text">
-                      <string>-50</string>
+                      <string>-100</string>
                      </property>
                     </widget>
                    </item>
@@ -760,7 +760,7 @@
                       </size>
                      </property>
                      <property name="text">
-                      <string>50</string>
+                      <string>100</string>
                      </property>
                     </widget>
                    </item>

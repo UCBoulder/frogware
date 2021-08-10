@@ -26,7 +26,7 @@ backlash = 3.0  # um
 edge_limit_buffer_mm = 1e-3  # 1 um
 emulating_spectrometer = False
 emulating_motor = False
-port = "COM4"
+port = "COM11"
 
 # some packages take time to import (namely thorlabs_apt), so import these
 # only if you are not emulating
@@ -408,8 +408,8 @@ class FrogLand:
         self.connect()
 
         # update the display
-        self.update_stepsize_from_le_um()
-        self.update_stepsize_spectrogram_from_le_um()
+        self.update_stepsize_from_le_fs()
+        self.update_stepsize_spectrogram_from_le_fs()
         self.update_current_pos(self.motor_interface.pos_um)
 
         self.update_startpos_from_le_fs()

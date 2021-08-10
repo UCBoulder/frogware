@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '.\Gui_Window.ui'
+# Form implementation generated from reading ui file 'Gui_Window.ui'
 #
 # Created by: PyQt5 UI code generator 5.9.2
 #
@@ -73,6 +73,7 @@ class Ui_MainWindow(object):
         self.formLayout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.label)
         self.le_step_size_um = QtWidgets.QLineEdit(self.groupBox_3)
         self.le_step_size_um.setMaximumSize(QtCore.QSize(50, 16777215))
+        self.le_step_size_um.setText("")
         self.le_step_size_um.setObjectName("le_step_size_um")
         self.formLayout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.le_step_size_um)
         self.label_2 = QtWidgets.QLabel(self.groupBox_3)
@@ -80,7 +81,6 @@ class Ui_MainWindow(object):
         self.formLayout.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.label_2)
         self.le_step_size_fs = QtWidgets.QLineEdit(self.groupBox_3)
         self.le_step_size_fs.setMaximumSize(QtCore.QSize(50, 16777215))
-        self.le_step_size_fs.setText("")
         self.le_step_size_fs.setObjectName("le_step_size_fs")
         self.formLayout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.le_step_size_fs)
         self.verticalLayout.addLayout(self.formLayout)
@@ -257,6 +257,7 @@ class Ui_MainWindow(object):
         self.formLayout_5.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.label_21)
         self.le_tab2_step_size_um = QtWidgets.QLineEdit(self.groupBox_5)
         self.le_tab2_step_size_um.setMaximumSize(QtCore.QSize(50, 16777215))
+        self.le_tab2_step_size_um.setText("")
         self.le_tab2_step_size_um.setObjectName("le_tab2_step_size_um")
         self.formLayout_5.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.le_tab2_step_size_um)
         self.label_22 = QtWidgets.QLabel(self.groupBox_5)
@@ -264,7 +265,6 @@ class Ui_MainWindow(object):
         self.formLayout_5.setWidget(1, QtWidgets.QFormLayout.LabelRole, self.label_22)
         self.le_tab2_step_size_fs = QtWidgets.QLineEdit(self.groupBox_5)
         self.le_tab2_step_size_fs.setMaximumSize(QtCore.QSize(50, 16777215))
-        self.le_tab2_step_size_fs.setText("")
         self.le_tab2_step_size_fs.setObjectName("le_tab2_step_size_fs")
         self.formLayout_5.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.le_tab2_step_size_fs)
         self.verticalLayout_12.addLayout(self.formLayout_5)
@@ -461,8 +461,8 @@ class Ui_MainWindow(object):
         self.btn_step_left.setText(_translate("MainWindow", "step left"))
         self.btn_step_right.setText(_translate("MainWindow", "step right"))
         self.label.setText(_translate("MainWindow", "step size (um)"))
-        self.le_step_size_um.setText(_translate("MainWindow", ".03"))
         self.label_2.setText(_translate("MainWindow", "step size (fs)"))
+        self.le_step_size_fs.setText(_translate("MainWindow", "1"))
         self.btn_home_stage.setText(_translate("MainWindow", "home stage"))
         self.btn_move_to_pos.setText(_translate("MainWindow", "move to position"))
         self.label_3.setText(_translate("MainWindow", "position (um)"))
@@ -479,14 +479,14 @@ class Ui_MainWindow(object):
         self.btn_collect_spectrogram.setText(_translate("MainWindow", "Collect \n"
 " Spectrogram"))
         self.label_21.setText(_translate("MainWindow", "step size (um)"))
-        self.le_tab2_step_size_um.setText(_translate("MainWindow", ".03"))
         self.label_22.setText(_translate("MainWindow", "step size (fs)"))
+        self.le_tab2_step_size_fs.setText(_translate("MainWindow", "2"))
         self.label_13.setText(_translate("MainWindow", "start (um)"))
         self.label_14.setText(_translate("MainWindow", "start (fs)"))
-        self.le_start_fs.setText(_translate("MainWindow", "-50"))
+        self.le_start_fs.setText(_translate("MainWindow", "-100"))
         self.label_15.setText(_translate("MainWindow", "end(um)"))
         self.label_16.setText(_translate("MainWindow", "end(fs)"))
-        self.le_end_fs.setText(_translate("MainWindow", "50"))
+        self.le_end_fs.setText(_translate("MainWindow", "100"))
         self.label_18.setText(_translate("MainWindow", "Current Position (um)"))
         self.label_20.setText(_translate("MainWindow", "Current Position (fs)"))
         self.groupBox1.setTitle(_translate("MainWindow", "Spectrogram"))
