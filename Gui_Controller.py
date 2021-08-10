@@ -1010,14 +1010,6 @@ class FrogLand:
             # set T0 position to current motor position
             self.T0_um = motor_pos_um
 
-            # set the move to position to 0
-            self.move_to_pos_fs = 0
-
-            # update the line edits
-            self.update_current_pos(motor_pos_um)
-            self.update_startpos_from_le_fs()
-            self.update_endpos_from_le_fs()
-
             # write the new T0 to file
             self.write_T0_to_file(self.T0_um)
 
@@ -1025,16 +1017,16 @@ class FrogLand:
             # set T0 position to current motor position
             self.T0_um = T0_um
 
-            # set the move to position to 0
-            self.move_to_pos_fs = 0
-
             # read the motor position
             motor_pos_um = self.motor_interface.pos_um
 
-            # update the line edits
-            self.update_current_pos(motor_pos_um)
-            self.update_startpos_from_le_fs()
-            self.update_endpos_from_le_fs()
+        # set the move to position to 0
+        self.move_to_pos_fs = 0
+
+        # update the line edits
+        self.update_current_pos(motor_pos_um)
+        self.update_startpos_from_le_fs()
+        self.update_endpos_from_le_fs()
 
     def read_T0_from_file(self):
         return np.loadtxt("T0_um.txt")
