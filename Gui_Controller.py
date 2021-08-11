@@ -315,8 +315,9 @@ class MotorInterface:
 
 class FrogLand:
     """
-    This class is the main user interface. It expects an instance of MainWindow, MotorInterface,
-    and util.Spectrometer class in the init function.
+    This class is the main user interface. It expects an instance of
+    MainWindow, MotorInterface, and util.Spectrometer class in the init
+    function.
     """
 
     def __init__(self, main_window, motor_interface, spectrometer):
@@ -407,7 +408,8 @@ class FrogLand:
         # connect and initialize
         self.connect()
 
-        # curr_mot_pos_um will be set by update_current_pos
+        # curr_mot_pos_um will be set by update_current_pos, so initialize it
+        # here
         self._curr_mot_pos_um = None
 
         # update the display
@@ -1078,10 +1080,12 @@ class FrogLand:
             self.stop_motor()
             return
 
-        # we need access to spectrometer, so stop the spectrum update
-        # but we're just stopping it (don't return)
-        # it's important you stop it here, or else you should call time.sleep after telling
-        # it to stop before immediately grabbing a spectrum
+        # we need access to the spectrometer, so stop the spectrum update but
+        # we're just stopping it (don't return). Because the continuous
+        # spectrum update loop is run on a different thread, you need to
+        # let the current loop finish before continuing to grab a spectrum.
+        # You can either call time.sleep(), or just tell it to stop earlier
+        # in the code.
         if self.cont_update_runnable_exists:
             self.stop_continuous_update()
 
