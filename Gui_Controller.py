@@ -24,8 +24,8 @@ tol_um = 0.1  # 100 nm
 overshoot_for_backlash = False
 backlash = 3.0  # um
 edge_limit_buffer_mm = 1e-3  # 1 um
-emulating_spectrometer = True
-emulating_motor = True
+emulating_spectrometer = False
+emulating_motor = False
 port = "COM11"
 
 # some packages take time to import (namely thorlabs_apt), so import these
@@ -407,6 +407,9 @@ class FrogLand:
         # connect and initialize
         self.connect()
 
+        # curr_mot_pos_um will be set by update_current_pos
+        self._curr_mot_pos_um = None
+
         # update the display
         self.update_stepsize_from_le_fs()
         self.update_stepsize_spectrogram_from_le_fs()
@@ -440,8 +443,6 @@ class FrogLand:
         self.ambient_intensity = np.zeros(len(self.spectrometer.wavelengths))
         self.intensities = np.zeros(len(self.spectrometer.wavelengths))
         self.bckgnd_subtrd = np.zeros(len(self.spectrometer.wavelengths))
-
-        self.curr_mot_pos_um = None
 
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
@@ -628,6 +629,17 @@ class FrogLand:
             self.stop_motor()
         if self.cont_update_runnable_exists:
             self.stop_continuous_update()
+
+    @property
+    def curr_mot_pos_um(self):
+        if self._curr_mot_pos_um is None:
+            return self.motor_interface.pos_um
+        else:
+            return self._curr_mot_pos_um
+
+    @curr_mot_pos_um.setter
+    def curr_mot_pos_um(self, value_um):
+        self._curr_mot_pos_um = value_um
 
     @property
     def T0_um(self):
@@ -1066,6 +1078,13 @@ class FrogLand:
             self.stop_motor()
             return
 
+        # we need access to spectrometer, so stop the spectrum update
+        # but we're just stopping it (don't return)
+        # it's important you stop it here, or else you should call time.sleep after telling
+        # it to stop before immediately grabbing a spectrum
+        if self.cont_update_runnable_exists:
+            self.stop_continuous_update()
+
         self.move_to_pos(self.start_pos_um)
         self.runnable_update_motor.finished.connect(self._check_if_at_start)
 
@@ -1075,11 +1094,6 @@ class FrogLand:
         self.reconnect_for_spectrogram()
 
     def _start_spectrogram_collection(self):
-        # we need access to spectrometer, so stop the spectrum update
-        # but we're just stopping it (don't return)
-        if self.cont_update_runnable_exists:
-            self.stop_continuous_update()
-
         self.spectrogram_now_running = True
         self.spectrogram_collection_instance.start()
 
