@@ -204,7 +204,7 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
         self.PlotItem.setYRange(self.ymin, ymax)
         self.ymax = ymax
 
-    def set_cmap(self, cmap='jet'):
+    def set_cmap(self, cmap='nipy_spectral'):
         _, lut = get_colormap(cmap)
         self.ii.setLookupTable(lut)
 

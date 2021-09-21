@@ -24,8 +24,8 @@ tol_um = 0.1  # 100 nm
 overshoot_for_backlash = False
 backlash = 3.0  # um
 edge_limit_buffer_mm = 1e-3  # 1 um
-emulating_spectrometer = False
-emulating_motor = False
+emulating_spectrometer = True
+emulating_motor = True
 port = "COM11"
 
 # import if not emulating
@@ -103,23 +103,9 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         self.frog_land.stop_all_runnables()
 
     def connect_motor_spectrometer(self):
-        # should end up doing something like:
-        # serial_number = apt.list_available_devices()[1]
-        # motor = apt.Motor(serial_number)
-        # self.motor = MotorInterface(util.Motor(motor))
-        # spectrometer = seabreeze.spectrometers.list_devices()[0]
-        # self.spectrometer = util.Spectrometer(spectrometer)
-
         if emulating_motor:
             self.motor_interface = MotorInterface(util.Motor(em.Motor()))
         else:
-            # serial_number = apt.list_available_devices()[0][1]
-            # motor = apt.Motor(serial_number)
-            # param = list(motor.get_velocity_parameters())
-            # param[-1] = 1.
-            # motor.set_velocity_parameters(*param)
-            # self.motor_interface = MotorInterface(util.Motor(motor))
-
             motor = apt.KDC101(port)
             self.motor_interface = MotorInterface(util.Motor(motor))
 
@@ -1120,7 +1106,7 @@ class FrogLand:
         self.Taxis_fs_list = []
         self.spectrogram_array_list = []
 
-        self.plot2d_window.plotwidget.set_cmap('jet')
+        self.plot2d_window.plotwidget.set_cmap('nipy_spectral')
 
     def _setup_2dplot(self):
         self.wl_axis = self.spectrometer.wavelengths

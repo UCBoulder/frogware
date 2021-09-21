@@ -1,29 +1,35 @@
 """This file should handle all the direct hardware interfacing"""
 
 
-# import thorlabs_apt as apt
-# import seabreeze.spectrometers as spec
-
-
 class Spectrometer:
     """
-    If you don't end up using an Ocean Optics spectrometer, you can
-    incorporate your spectrometer into the GUI by writing a class with the
-    same attributes and methods as this one.
+    This class expects a spectrometer instance. You can incorporate a
+    spectrometer and pass it to here by creating a spectrometer class with
+    the following attributes and methods:
+
+    methods:
+
+        1. spectrum(): returns wavelengths, intensities
+
+        2. wavelengths(): returns wavelengths
+
+        3. integration_time_micros(integration_time_micros): sets the
+        integration time in microseconds
+
+
+    attributes:
+
+        1. integration_time_micros_limits: [min_int_time_us, max_int_time_us]
+
     """
 
     def __init__(self, spectrometer):
-        # spectrometer: spec.Spectrometer
         self.spectrometer = spectrometer
 
+        # initialize the integration time to some value, and then update the
+        # actual spectrometer integration time in MainWindow (so the value
+        # here doesn't matter)
         self._integration_time_micros = 30000
-        # for some reason seabreeze doesn't have a "read integration time"
-        # function, so initialize it to some value, and then set the actual
-        # spectrometer setting to that value. From there
-        # just keep track of it.
-
-        # now I have the Gui Controller set it upon initialization
-        # self.integration_time_micros = self._integration_time_micros
 
     def get_spectrum(self):
         """
@@ -55,11 +61,37 @@ class Spectrometer:
 
 class Motor:
     """
-    This is a motor class that uses the thorlabs_apt package.
+    This class expects a motor instance. You can incorporate a motor and pass
+    it to here by creating a motor class with the following attributes
+    and methods:
+
+    methods:
+
+        1. get_stage_axis_info: returns min_pos, max_pos, units, pitch
+
+        note: the important thing is the min_pos and max_pos, if you like you
+        can return None for the other two
+
+        2. move_by(value, blocking): moves the motor, blocking doesn't need
+        to do anything
+
+        3. move_home(blocking): homes the motor, blocking doesn't need to do
+        anything
+
+        4. stop_profiled(): stops the motor
+
+    attributes:
+
+        1.  position
+
+            note: position needs to be a property, where the getter returns
+            the current position, and the setter moves the motor to the new
+            position
+
+        2. is_in_motion
     """
 
     def __init__(self, motor):
-        # motor: apt.Motor
         self.motor = motor
 
         self._min_pos, self._max_pos, self._units, self._pitch = \
