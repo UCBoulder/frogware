@@ -28,13 +28,11 @@ emulating_spectrometer = False
 emulating_motor = False
 port = "COM11"
 
-# some packages take time to import (namely thorlabs_apt), so import these
-# only if you are not emulating
+# import if not emulating
 if not emulating_spectrometer:
     import stellarnet_peter as snp
 
 if not emulating_motor:
-    # import thorlabs_apt as apt
     import MotorClassFromAptProtocolConnor as apt
 
 
@@ -78,9 +76,7 @@ def raise_error(error_window, text):
 
 class MainWindow(qt.QMainWindow, Ui_MainWindow):
     """
-    This is the main GUI window. For better readability and ease of editing
-    later on, I would like to move as many widgets as possible into their own
-    separate classes.
+    This is the main GUI window.
     """
 
     def __init__(self):
@@ -248,9 +244,11 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
 
 class MotorInterface:
-    """I was thinking to keep classes in utilities.py more bare bone,
-    and focus on hardware communication there. Here I will add more things I
-    would like the Motor class to have. """
+    """To help with integrating other pieces of hardware, I was thinking to
+    keep classes in utilities.py more bare bone, and focus on hardware
+    communication there. Here I will add more things I would like the Motor
+    class to have. This class expects an instance of util.Motor class from
+    utilities.py """
 
     def __init__(self, motor):
         motor: util.Motor
