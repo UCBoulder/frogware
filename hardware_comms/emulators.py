@@ -1,5 +1,5 @@
-"""The emulator class is made in the hopes that I just have to debug utilities.py
-when I first connect to hardware."""
+"""The emulator class is made in the hopes that I just have to debug
+utilities.py when I first connect to hardware. """
 
 import numpy as np
 import time

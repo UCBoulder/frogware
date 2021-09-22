@@ -8,7 +8,7 @@ import utilities as util
 import time
 from Error import Ui_Form
 import PyQt5.QtGui as qtg
-import emulators as em
+import hardware_comms.emulators as em
 from scipy.constants import c as c_mks
 import gc
 import sys
@@ -21,8 +21,6 @@ pool = qtc.QThreadPool.globalInstance()
 
 # global variables
 tol_um = 0.1  # 100 nm
-overshoot_for_backlash = False
-backlash = 3.0  # um
 edge_limit_buffer_mm = 1e-3  # 1 um
 emulating_spectrometer = True
 emulating_motor = True
@@ -33,7 +31,7 @@ if not emulating_spectrometer:
     import stellarnet_peter as snp
 
 if not emulating_motor:
-    import MotorClassFromAptProtocolConnor as apt
+    from hardware_comms import MotorClassFromAptProtocolConnor as apt
 
 
 def dist_um_to_T_fs(value_um):
@@ -412,11 +410,6 @@ class FrogLand:
 
         # Error Popup Window
         self.error_window = ErrorWindow()
-
-        # backlash distance: 3 micon
-        # I believe it's rated to be <3 micron, so I think this should do it
-        # maybe it's not needed at all...
-        self.backlash = backlash
 
         # step size limit
         # self.step_size_max = 50.
