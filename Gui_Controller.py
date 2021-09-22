@@ -8,7 +8,7 @@ import utilities as util
 import time
 from Error import Ui_Form
 import PyQt5.QtGui as qtg
-import hardware_comms.emulators as em
+import hardware_comms.Emulators as em
 from scipy.constants import c as c_mks
 import gc
 import sys
@@ -28,7 +28,7 @@ port = "COM11"
 
 # import if not emulating
 if not emulating_spectrometer:
-    import stellarnet_peter as snp
+    from hardware_comms import stellarnet_peter as snp
 
 if not emulating_motor:
     from hardware_comms import MotorClassFromAptProtocolConnor as apt
@@ -1048,9 +1048,7 @@ class FrogLand:
         # first.
         # time.sleep(.1)
 
-    def collect_spectrogram(self,
-                            *args,
-                            overshoot_for_backlash=overshoot_for_backlash):
+    def collect_spectrogram(self, *args):
 
         # if motor is in motion, stop the motor
         if self.motor_runnable_exists:
@@ -1099,7 +1097,7 @@ class FrogLand:
         self.Taxis_fs_list = []
         self.spectrogram_array_list = []
 
-        self.plot2d_window.plotwidget.set_cmap('nipy_spectral')
+        self.plot2d_window.plotwidget.set_cmap('jet')
 
     def _setup_2dplot(self):
         self.wl_axis = self.spectrometer.wavelengths
