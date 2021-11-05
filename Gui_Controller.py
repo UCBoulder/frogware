@@ -1203,6 +1203,8 @@ class CollectSpectrogram:
                   "fs remaining")
 
             if np.round(pos_um, 3) <= np.round(self.end_pos_um, 3):
+                # TODO might want to move this out of the loop, that way
+                #  you include the last data point.
                 self.emit_data(pos_um)
 
                 # step the motor
