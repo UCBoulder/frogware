@@ -1061,6 +1061,7 @@ class FrogLand:
         # let the current loop finish before continuing to grab a spectrum.
         # You can either call time.sleep(), or just tell it to stop earlier
         # in the code.
+        # TODO implement this via a threading event instead
         if self.cont_update_runnable_exists:
             self.stop_continuous_update()
 
@@ -1213,6 +1214,7 @@ class CollectSpectrogram:
 
             # otherwise, flag that the spectrogram collection is done
             else:
+                # TODO are you sure you're not also supposed to call self.disconnect_signals() ?
                 self.signal.finished.emit(None)
 
     def step_two(self):
