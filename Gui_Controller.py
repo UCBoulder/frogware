@@ -12,6 +12,7 @@ import hardware_comms.Emulators as em
 from scipy.constants import c as c_mks
 import gc
 import sys
+import threading
 
 sys.path.append("Stellarnet_Python_Drivers/")
 
@@ -163,7 +164,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
                 )
                 return
 
-            if self.frog_land.cont_update_runnable_exists:
+            if self.frog_land.cont_update_runnable_exists.is_set():
                 raise_error(self.error_window,
                             "stop spectrum update first")
 
@@ -405,8 +406,8 @@ class FrogLand:
         self.set_T0(T0_um=self.read_T0_from_file())
 
         # do runnables already exist
-        self.cont_update_runnable_exists = False
-        self.motor_runnable_exists = False
+        self.cont_update_runnable_exists = threading.Event()
+        self.motor_runnable_exists = threading.Event()
 
         # Error Popup Window
         self.error_window = ErrorWindow()
@@ -431,11 +432,11 @@ class FrogLand:
             # set the continuous update spectrum flag to true
             # other parts of the program will need to check that
             # to know if the spectrometer is available
-            self.cont_update_runnable_exists = True
+            self.cont_update_runnable_exists.set()
 
             # create a runnable
             self.runnable_update_spectrum = UpdateSpectrumRunnable(
-                self.spectrometer)
+                self.spectrometer, self.cont_update_runnable_exists)
 
             # I don't know if this is necessary, but in case the old memory
             # is not freed up when re-assigning new content, do some garbage
@@ -445,7 +446,7 @@ class FrogLand:
             # set the continuous motor update flag to true
             # other parts of the program will need to check that
             # to know if the motor is available
-            self.motor_runnable_exists = True
+            self.motor_runnable_exists.set()
 
             # create a runnable
             self.runnable_update_motor = UpdateMotorPositionRunnable(
@@ -604,9 +605,9 @@ class FrogLand:
             self.collect_spectrogram)
 
     def stop_all_runnables(self):
-        if self.motor_runnable_exists:
+        if self.motor_runnable_exists.is_set():
             self.stop_motor()
-        if self.cont_update_runnable_exists:
+        if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
 
     @property
@@ -837,7 +838,7 @@ class FrogLand:
         # I would like to have the start_continuous_update button
         # work like a toggle. So, if the runnable already exists, then
         # just stop the process and return.
-        if self.cont_update_runnable_exists:
+        if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
             return
 
@@ -859,7 +860,6 @@ class FrogLand:
     def stop_continuous_update(self):
         # stop the continuous update
         self.runnable_update_spectrum.stop()
-        self.cont_update_runnable_exists = False
 
         self.btn_start.setText("Start \n Continuous Update")
 
@@ -889,7 +889,7 @@ class FrogLand:
             step_size_um = self.step_size_um
 
         # if motor is currently moving, just stop the motor.
-        if self.motor_runnable_exists:
+        if self.motor_runnable_exists.is_set():
             self.stop_motor()
             return
 
@@ -917,7 +917,7 @@ class FrogLand:
             step_size_um = self.step_size_um
 
         # if motor is currently moving, just stop the motor.
-        if self.motor_runnable_exists:
+        if self.motor_runnable_exists.is_set():
             self.stop_motor()
             return
 
@@ -938,7 +938,7 @@ class FrogLand:
 
     def move_to_pos(self, target_um=False):
         # if motor is currently moving, just stop the motor.
-        if self.motor_runnable_exists:
+        if self.motor_runnable_exists.is_set():
             self.stop_motor()
             return
 
@@ -991,7 +991,7 @@ class FrogLand:
     # it sets motor_runnable_exists to False, and does some house keeping
     # with button labels
     def motor_finished(self):
-        self.motor_runnable_exists = False
+        self.motor_runnable_exists.clear()
 
         self.btn_move_to_pos.setText("move to position")
         self.btn_home_stage.setText("home stage")
@@ -1031,7 +1031,7 @@ class FrogLand:
 
     def home_stage(self):
         # if motor is currently moving, just stop the motor.
-        if self.motor_runnable_exists:
+        if self.motor_runnable_exists.is_set():
             self.stop_motor()
             return
 
@@ -1051,7 +1051,7 @@ class FrogLand:
     def collect_spectrogram(self, *args):
 
         # if motor is in motion, stop the motor
-        if self.motor_runnable_exists:
+        if self.motor_runnable_exists.is_set():
             self.stop_motor()
             return
 
@@ -1062,7 +1062,7 @@ class FrogLand:
         # You can either call time.sleep(), or just tell it to stop earlier
         # in the code.
         # TODO implement this via a threading event instead
-        if self.cont_update_runnable_exists:
+        if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
 
         self.move_to_pos(self.start_pos_um)
@@ -1202,10 +1202,12 @@ class CollectSpectrogram:
             print("point", self.n + 1, ", ", self.end_pos_fs - pos_fs,
                   "fs remaining")
 
+            self.emit_data(pos_um)
+
             if np.round(pos_um, 3) <= np.round(self.end_pos_um, 3):
                 # TODO might want to move this out of the loop, that way
                 #  you include the last data point.
-                self.emit_data(pos_um)
+                # self.emit_data(pos_um)
 
                 # step the motor
                 self.frogland.step_right(step_size_um=self.step_um,
@@ -1217,6 +1219,7 @@ class CollectSpectrogram:
             # otherwise, flag that the spectrogram collection is done
             else:
                 # TODO are you sure you're not also supposed to call self.disconnect_signals() ?
+                self.disconnect_signals()
                 self.signal.finished.emit(None)
 
     def step_two(self):
@@ -1263,7 +1266,7 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
 class UpdateSpectrumRunnable(qtc.QRunnable):
     """Runnable class for the ContinuousUpdate class"""
 
-    def __init__(self, spectrometer):
+    def __init__(self, spectrometer, event):
         super().__init__()
 
         # this class takes as input the spectrometer which it will
@@ -1280,6 +1283,9 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
         # initialize stop signal to false
         self._stop = False
 
+        event: threading.Event
+        self.event = event
+
     # set stop signal to true
     def stop(self):
         self._stop = True
@@ -1295,6 +1301,10 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
             if emulating_spectrometer:
                 sleep_time = self.spectrometer.integration_time_micros * 1e-6
                 time.sleep(sleep_time)
+
+        # stop flag has been set to True, and the loop has terminated
+        # clear the event
+        self.event.clear()
 
 
 if __name__ == '__main__':
