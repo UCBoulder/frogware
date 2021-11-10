@@ -407,6 +407,7 @@ class FrogLand:
 
         # do runnables already exist
         self.cont_update_runnable_exists = threading.Event()
+        self.cont_update_loop_exited = threading.Event()
         self.motor_runnable_exists = threading.Event()
 
         # Error Popup Window
@@ -433,10 +434,13 @@ class FrogLand:
             # other parts of the program will need to check that
             # to know if the spectrometer is available
             self.cont_update_runnable_exists.set()
+            self.cont_update_loop_exited.clear()
 
             # create a runnable
             self.runnable_update_spectrum = UpdateSpectrumRunnable(
-                self.spectrometer, self.cont_update_runnable_exists)
+                spectrometer=self.spectrometer,
+                event_to_clear=self.cont_update_runnable_exists,
+                event_to_set=self.cont_update_loop_exited)
 
             # I don't know if this is necessary, but in case the old memory
             # is not freed up when re-assigning new content, do some garbage
@@ -450,7 +454,8 @@ class FrogLand:
 
             # create a runnable
             self.runnable_update_motor = UpdateMotorPositionRunnable(
-                self.motor_interface)
+                motor_interface=self.motor_interface,
+                event_to_clear=self.motor_runnable_exists)
 
             # I don't know if this is necessary, but in case the old memory
             # is not freed up when re-assigning new content, do some garbage
@@ -991,7 +996,8 @@ class FrogLand:
     # it sets motor_runnable_exists to False, and does some house keeping
     # with button labels
     def motor_finished(self):
-        self.motor_runnable_exists.clear()
+        # this is now done inside the runnable class when the run loop exits
+        # self.motor_runnable_exists.clear()
 
         self.btn_move_to_pos.setText("move to position")
         self.btn_home_stage.setText("home stage")
@@ -1064,6 +1070,7 @@ class FrogLand:
         # TODO implement this via a threading event instead
         if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
+            self.cont_update_loop_exited.wait()
 
         self.move_to_pos(self.start_pos_um)
         self.runnable_update_motor.finished.connect(self._check_if_at_start)
@@ -1229,7 +1236,7 @@ class CollectSpectrogram:
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
-    def __init__(self, motor_interface):
+    def __init__(self, motor_interface, event_to_clear):
         super().__init__()
 
         motor_interface: MotorInterface
@@ -1239,6 +1246,9 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self.progress = self.signal.progress
         self.finished = self.signal.finished
         self._stop_initiated = False
+
+        event_to_clear: threading.Event
+        self.event_to_clear = event_to_clear
 
     """
     I ran into an error where I believe the program was writing two
@@ -1254,9 +1264,14 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         while self.motor_interface.motor.is_in_motion:
             if self._stop_initiated:
                 self.motor_interface.motor.stop_motor()
+
             pos = self.motor_interface.pos_um
             self.progress.emit(pos)
             # time.sleep(.001)
+
+        # stop flag has been set to True, and the loop has terminated
+        # clear the event
+        self.event_to_clear.clear()
 
         pos = self.motor_interface.pos_um
         self.progress.emit(pos)
@@ -1266,7 +1281,7 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
 class UpdateSpectrumRunnable(qtc.QRunnable):
     """Runnable class for the ContinuousUpdate class"""
 
-    def __init__(self, spectrometer, event):
+    def __init__(self, spectrometer, event_to_clear, event_to_set):
         super().__init__()
 
         # this class takes as input the spectrometer which it will
@@ -1283,8 +1298,10 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
         # initialize stop signal to false
         self._stop = False
 
-        event: threading.Event
-        self.event = event
+        event_to_clear: threading.Event
+        event_to_set: threading.Event
+        self.event_to_clear = event_to_clear
+        self.event_to_set = event_to_set
 
     # set stop signal to true
     def stop(self):
@@ -1304,7 +1321,8 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
 
         # stop flag has been set to True, and the loop has terminated
         # clear the event
-        self.event.clear()
+        self.event_to_clear.clear()
+        self.event_to_set.set()
 
 
 if __name__ == '__main__':
