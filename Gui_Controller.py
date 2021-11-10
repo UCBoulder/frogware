@@ -866,6 +866,9 @@ class FrogLand:
         # stop the continuous update
         self.runnable_update_spectrum.stop()
 
+        # waiting for the loop to exit should be very fast, so we can
+        # afford to wait, make sure to do this only after calling stop
+        self.cont_update_loop_exited.wait()
         self.btn_start.setText("Start \n Continuous Update")
 
     def plot_update(self, X):
@@ -978,6 +981,9 @@ class FrogLand:
         self.lcd_current_pos_fs_tab2.display(
             '%.3f' % motor_pos_fs)
 
+    """The motor takes a while to stop (it slows to a stop). Using a wait() flag may cause the GUI to freeze, 
+    so instead of using a threading Event, I just connect a finished signal to the motor_finished slot """
+
     # stop_motor should send the stop_signal to the motor hardware
     # it will not set motor_runnable_exists to False, that will only
     # occur once is_in_motion is detected to be False
@@ -996,9 +1002,6 @@ class FrogLand:
     # it sets motor_runnable_exists to False, and does some house keeping
     # with button labels
     def motor_finished(self):
-        # this is now done inside the runnable class when the run loop exits
-        # self.motor_runnable_exists.clear()
-
         self.btn_move_to_pos.setText("move to position")
         self.btn_home_stage.setText("home stage")
 
@@ -1065,12 +1068,10 @@ class FrogLand:
         # we're just stopping it (don't return). Because the continuous
         # spectrum update loop is run on a different thread, you need to
         # let the current loop finish before continuing to grab a spectrum.
-        # You can either call time.sleep(), or just tell it to stop earlier
-        # in the code.
+        # This is implemented using a threading event
         # TODO implement this via a threading event instead
         if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
-            self.cont_update_loop_exited.wait()
 
         self.move_to_pos(self.start_pos_um)
         self.runnable_update_motor.finished.connect(self._check_if_at_start)
