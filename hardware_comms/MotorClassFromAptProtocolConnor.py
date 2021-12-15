@@ -2,6 +2,7 @@ import struct
 from APT import _auto_connect
 import numpy as np
 import APT as apt
+import gc
 
 
 class AptMotor(apt.KDC101_PRM1Z8):
@@ -10,9 +11,11 @@ class AptMotor(apt.KDC101_PRM1Z8):
 
         # TODO these are pulled from the apt controller manual
         #  as of right now, I don't think the vel_scl_fct and acc_scl_fct are actually needed
-        self.ENC_CNT_MM = 24 * 2048 * 400 / 9
-        self.VEL_SCL_FCT = 117265749.2
-        self.ACC_SCL_FCT = 24111.85
+        self.ENC_CNT_MM = 24 * 2048 * 40.866
+        self.VEL_SCL_FCT = 107824097.5
+        self.ACC_SCL_FCT = 22097.3
+
+        self.ENC_CNT_DEG = None
 
     @_auto_connect
     def position(self, position=None):

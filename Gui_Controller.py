@@ -25,9 +25,9 @@ pool = qtc.QThreadPool.globalInstance()
 # global variables
 tol_um = 0.1  # 100 nm
 edge_limit_buffer_mm = 1e-3  # 1 um
-emulating_spectrometer = True
-emulating_motor = True
-port = "COM11"
+emulating_spectrometer = False
+emulating_motor = False
+port = "COM3"
 
 # import if not emulating
 if not emulating_spectrometer:
