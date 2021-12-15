@@ -8,6 +8,10 @@ Things to look for:
 	1. sending two commands to the serial port at the same time
 
 		a. step through the position function in AptMotor in
-		MotorClassFromAptProtocolConnor.py in debugger mode.
+		MotorClassFromAptProtocolConnor.py in debugger mode. While there look for info on the following issues:
 
-		b.
+            i. There is currently an issue where I don't think the
+            motor is actually moving...
+
+            ii. There is also currently an issue where the read position is incorrect
+            at startup.
