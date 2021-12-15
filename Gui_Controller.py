@@ -14,7 +14,9 @@ import gc
 import sys
 import threading
 
+# add these to path
 sys.path.append("Stellarnet_Python_Drivers/")
+sys.path.append("hardware_comms/")
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds

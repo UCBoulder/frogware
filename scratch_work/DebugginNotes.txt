@@ -1,0 +1,13 @@
+
+A few notes:
+
+It evidently grabbed some position upon start up, so the position read out must be working.
+
+Things to look for:
+
+	1. sending two commands to the serial port at the same time
+
+		a. step through the position function in AptMotor in
+		MotorClassFromAptProtocolConnor.py in debugger mode.
+
+		b.
