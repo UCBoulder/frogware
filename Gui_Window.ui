@@ -1022,12 +1022,12 @@
           </column>
           <column>
            <property name="text">
-            <string>Upper Limit</string>
+            <string>Lower Limit</string>
            </property>
           </column>
           <column>
            <property name="text">
-            <string>Lower Limit</string>
+            <string>Upper Limit</string>
            </property>
           </column>
           <column>
@@ -1079,7 +1079,7 @@
   </widget>
   <action name="actionOpen">
    <property name="icon">
-    <iconset resource="QRC_file.qrc">
+    <iconset>
      <normaloff>:/Open/open_icon.png</normaloff>:/Open/open_icon.png</iconset>
    </property>
    <property name="text">

@@ -9,8 +9,6 @@ class AptMotor(apt.KDC101_PRM1Z8):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # TODO these are pulled from the apt controller manual
-        #  as of right now, I don't think the vel_scl_fct and acc_scl_fct are actually needed
         self.ENC_CNT_MM = 24 * 2048 * 40.866
         self.VEL_SCL_FCT = 107824097.5
         self.ACC_SCL_FCT = 22097.3
