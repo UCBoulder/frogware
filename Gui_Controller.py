@@ -1071,7 +1071,6 @@ class FrogLand:
         # spectrum update loop is run on a different thread, you need to
         # let the current loop finish before continuing to grab a spectrum.
         # This is implemented using a threading event
-        # TODO implement this via a threading event instead
         if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
 
@@ -1215,9 +1214,6 @@ class CollectSpectrogram:
             self.emit_data(pos_um)
 
             if np.round(pos_um, 3) <= np.round(self.end_pos_um, 3):
-                # TODO might want to move this out of the loop, that way
-                #  you include the last data point.
-                # self.emit_data(pos_um)
 
                 # step the motor
                 self.frogland.step_right(step_size_um=self.step_um,
@@ -1228,7 +1224,6 @@ class CollectSpectrogram:
 
             # otherwise, flag that the spectrogram collection is done
             else:
-                # TODO are you sure you're not also supposed to call self.disconnect_signals() ?
                 self.disconnect_signals()
                 self.signal.finished.emit(None)
 
