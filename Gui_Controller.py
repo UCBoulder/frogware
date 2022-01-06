@@ -1107,7 +1107,7 @@ class FrogLand:
         self.Taxis_fs_list = []
         self.spectrogram_array_list = []
 
-        self.plot2d_window.plotwidget.set_cmap('jet')
+        self.plot2d_window.plotwidget.set_cmap('nipy_spectral')
 
     def _setup_2dplot(self):
         self.wl_axis = self.spectrometer.wavelengths
@@ -1190,6 +1190,19 @@ class CollectSpectrogram:
     def emit_data(self, pos_um):
         # collect spectrum
         wavelengths, intensities = self.spectrometer.get_spectrum()
+
+        """trying to average without detector saturation. Doesn't really help """
+        # __________________________________________________________
+        # N = 10
+        # Intensities = np.zeros((N, len(intensities)))
+        # Intensities[0] = intensities
+        #
+        # for i in range(1, N - 1, 1):
+        #     Intensities[i] = self.spectrometer.get_spectrum()[1]
+        #
+        # intensities = np.mean(Intensities, 0)
+        # __________________________________________________________
+
         pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
         self.signal.progress.emit((wavelengths, intensities, self.n, pos_fs))
 
