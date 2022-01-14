@@ -24,7 +24,7 @@ pool = qtc.QThreadPool.globalInstance()
 
 # global variables
 tol_um = 0.1  # 100 nm
-edge_limit_buffer_mm = 1e-3  # 1 um
+edge_limit_buffer_mm = 0.0  # 1 um
 emulating_spectrometer = False
 emulating_motor = False
 port = "COM3"
@@ -1107,7 +1107,7 @@ class FrogLand:
         self.Taxis_fs_list = []
         self.spectrogram_array_list = []
 
-        self.plot2d_window.plotwidget.set_cmap('nipy_spectral')
+        self.plot2d_window.plotwidget.set_cmap('jet')
 
     def _setup_2dplot(self):
         self.wl_axis = self.spectrometer.wavelengths
