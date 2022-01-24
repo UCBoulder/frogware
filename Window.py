@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Gui_Window.ui'
+# Form implementation generated from reading ui file '.\Gui_Window.ui'
 #
 # Created by: PyQt5 UI code generator 5.9.2
 #
@@ -400,9 +400,11 @@ class Ui_MainWindow(object):
         self.tableWidget = QtWidgets.QTableWidget(self.tab_3)
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setColumnCount(4)
-        self.tableWidget.setRowCount(1)
+        self.tableWidget.setRowCount(2)
         item = QtWidgets.QTableWidgetItem()
         self.tableWidget.setVerticalHeaderItem(0, item)
+        item = QtWidgets.QTableWidgetItem()
+        self.tableWidget.setVerticalHeaderItem(1, item)
         item = QtWidgets.QTableWidgetItem()
         self.tableWidget.setHorizontalHeaderItem(0, item)
         item = QtWidgets.QTableWidgetItem()
@@ -419,6 +421,8 @@ class Ui_MainWindow(object):
         self.tableWidget.setItem(0, 2, item)
         item = QtWidgets.QTableWidgetItem()
         self.tableWidget.setItem(0, 3, item)
+        item = QtWidgets.QTableWidgetItem()
+        self.tableWidget.setItem(1, 0, item)
         self.gridLayout_5.addWidget(self.tableWidget, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tab_3, "")
         self.gridLayout_3.addWidget(self.tabWidget, 0, 0, 1, 1)
@@ -497,6 +501,8 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Spectrogram"))
         item = self.tableWidget.verticalHeaderItem(0)
         item.setText(_translate("MainWindow", "Integration Time"))
+        item = self.tableWidget.verticalHeaderItem(1)
+        item.setText(_translate("MainWindow", "Scans to Average"))
         item = self.tableWidget.horizontalHeaderItem(0)
         item.setText(_translate("MainWindow", "Setting"))
         item = self.tableWidget.horizontalHeaderItem(1)
@@ -511,6 +517,8 @@ class Ui_MainWindow(object):
         item.setText(_translate("MainWindow", "30"))
         item = self.tableWidget.item(0, 3)
         item.setText(_translate("MainWindow", "ms"))
+        item = self.tableWidget.item(1, 0)
+        item.setText(_translate("MainWindow", "1"))
         self.tableWidget.setSortingEnabled(__sortingEnabled)
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "Settings"))
         self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))

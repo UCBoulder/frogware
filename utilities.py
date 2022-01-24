@@ -26,10 +26,10 @@ class Spectrometer:
     def __init__(self, spectrometer):
         self.spectrometer = spectrometer
 
-        # initialize the integration time to some value, and then update the
-        # actual spectrometer integration time in MainWindow (so the value
-        # here doesn't matter)
+        # initialize the integration time and number of scans to average to some value, and then update the actual
+        # spectrometer integration time in MainWindow (so the value here doesn't matter)
         self._integration_time_micros = 30000
+        self._scans_to_avg = 1
 
     def get_spectrum(self):
         """
@@ -49,6 +49,15 @@ class Spectrometer:
     def integration_time_micros(self, value):
         self._integration_time_micros = value
         self.spectrometer.integration_time_micros(self._integration_time_micros)
+
+    @property
+    def scans_to_avg(self):
+        return self._scans_to_avg
+
+    @scans_to_avg.setter
+    def scans_to_avg(self, N):
+        self._scans_to_avg = N
+        self.spectrometer.set_scans_to_average(N)
 
     @property
     def integration_time_micros_limit(self):

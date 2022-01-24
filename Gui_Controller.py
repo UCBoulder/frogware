@@ -95,6 +95,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
         self.set_hardware_params()
         self.update_hardware_from_table_int_time()
+        self.update_hardware_from_table_scans_to_avg()
 
         self.connect_signals()
 
@@ -144,12 +145,24 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         # set the integration time in the hardware
         self.spectrometer.integration_time_micros = value_ms * 1e3
 
+    @property
+    def scans_to_avg(self):
+        return self.spectrometer.scans_to_avg
+
+    @scans_to_avg.setter
+    def scans_to_avg(self, N):
+        # set the number of scans to average
+        self.spectrometer.scans_to_avg = N
+
     def update_table_from_hardware_int_time(self):
         # update the gui based off the hardware
         self.tableWidget.item(0, 0).setText(str(self.integration_time_ms))
 
     def update_hardware_from_table_int_time(self):
         self.integration_time_ms = float(self.tableWidget.item(0, 0).text())
+
+    def update_hardware_from_table_scans_to_avg(self):
+        self.scans_to_avg = int(self.tableWidget.item(1, 0).text())
 
     def save_table_item(self, row, col):
         self.saved_table_item_text = \
@@ -200,6 +213,42 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
                 self.error_window,
                 "I'm too lazy to let you change this")
             self.tableWidget.item(row, col).setText(self.saved_table_item_text)
+
+        if (row, col) == (1, 0):
+            if self.frog_land.spectrogram_now_running:
+                raise_error(self.error_window,
+                            "stop spectrogram collection first")
+
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text
+                )
+                return
+
+            if self.frog_land.cont_update_runnable_exists.is_set():
+                raise_error(self.error_window,
+                            "stop spectrum update first")
+
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text
+                )
+                return
+
+            scns_to_avg = float(self.tableWidget.item(row, col).text())
+            if scns_to_avg <= 0:
+                raise_error(self.error_window,
+                            "scans to average must be greater than 0")
+
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text
+                )
+                return
+
+            if int(scns_to_avg) - scns_to_avg != 0:
+                self.tableWidget.item(row, col).setText(
+                    str(int(scns_to_avg))
+                )
+
+            self.update_hardware_from_table_scans_to_avg()
 
     def save_spectrogram(self):
         if self.frog_land.spectrogram_array is None:
