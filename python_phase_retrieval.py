@@ -285,6 +285,13 @@ def load_data(path, spectrogram=None):
     Args:
         path (string):
             path to the FROG data
+        spectrogram (2D array, optional):
+            The spectrogram data going as:
+                nan wl .........
+                T_fs    x x x x
+                .       x x x x
+                .       x x x x
+                .       x x x x
 
     Returns:
         wl_nm (1D array):
@@ -304,6 +311,10 @@ def load_data(path, spectrogram=None):
             3. frequency axis
         no alteration to the data is made besides truncation along the time
         axis to center T0
+
+        if the spectrogram is passed in, it is assumed that the spectrogram is
+        what you would get from np.genfromtxt(path), and in which case the
+        path is not used at all (could be "hello world")
     """
     if spectrogram is None:
         spectrogram = np.genfromtxt(path)
@@ -722,18 +733,34 @@ class Retrieval:
 
     def load_data(self, path, spectrogram=None):
         """
-        load the data
+        loads the spectrogram data
 
         Args:
             path (string):
-                path to data
+                path to the FROG data
+            spectrogram (2D array, optional):
+                The spectrogram data going as:
+                    nan wl .........
+                    T_fs    x x x x
+                    .       x x x x
+                    .       x x x x
+                    .       x x x x
+
+        Notes:
+            this function extracts relevant variables from the spectrogram data:
+                1. time axis
+                2. wavelength axis
+                3. frequency axis
+            no alteration to the data is made besides truncation along the time
+            axis to center T0
+
+            if the spectrogram is passed in, it is assumed that the spectrogram
+            is what you would get from np.genfromtxt(path), and in which case
+            the path is not used at all (could be "hello world")
         """
-        if spectrogram is None:
-            self._wl_nm, self._F_THz, self._T_fs, self._spectrogram = load_data(path)
-        else:
-            self._wl_nm, self._F_THz, self._T_fs, self._spectrogram = load_data(
-                spectrogram
-            )
+        self._wl_nm, self._F_THz, self._T_fs, self._spectrogram = load_data(
+            path, spectrogram=spectrogram
+        )
 
     def set_signal_freq(self, min_sig_fthz, max_sig_fthz):
         """
