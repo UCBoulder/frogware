@@ -1,5 +1,6 @@
-"""The emulator class is made in the hopes that I just have to debug
-utilities.py when I first connect to hardware. """
+"""
+This python file is deprecated! No longer used.
+"""
 
 import numpy as np
 import time
@@ -11,7 +12,7 @@ pool = qtc.QThreadPool.globalInstance()
 # global variables
 # step_size_mm = 30e-9 * 1e3  # 30 nm
 step_size_mm = 7.49481145e-09 * 1e3 / 2
-sleep_time = .00005  # 1ms
+sleep_time = 0.00005  # 1ms
 
 
 class Motor:
@@ -42,13 +43,13 @@ class Motor:
         self.move_to(self._position + value_mm)
 
     def move_home(self, blocking):
-        self.move_to(0.)
+        self.move_to(0.0)
 
     def stop_profiled(self):
         self._stop = True
 
     def get_stage_axis_info(self):
-        return 0, 10, "mm", 0.
+        return 0, 10, "mm", 0.0
 
 
 class MotorRunnable(qtc.QRunnable):
