@@ -569,7 +569,7 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="0">
-         <layout class="QHBoxLayout" name="horizontalLayout_17">
+         <layout class="QHBoxLayout" name="horizontalLayout_18">
           <item>
            <layout class="QVBoxLayout" name="verticalLayout_14">
             <item>
@@ -590,7 +590,7 @@
               <property name="maximumSize">
                <size>
                 <width>232</width>
-                <height>287</height>
+                <height>329</height>
                </size>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_12">
@@ -843,6 +843,44 @@
                  </item>
                  <item>
                   <spacer name="horizontalSpacer_20">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_17">
+                 <item>
+                  <spacer name="horizontalSpacer_21">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="btn_plot_autocorrelation">
+                   <property name="text">
+                    <string>plot intensity 
+  autocorrelation</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer_22">
                    <property name="orientation">
                     <enum>Qt::Horizontal</enum>
                    </property>
