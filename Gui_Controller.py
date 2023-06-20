@@ -27,7 +27,7 @@ tol_um = 0.1  # 100 nm
 edge_limit_buffer_mm = 0.0  # 1 um
 emulating_spectrometer = False
 emulating_motor = False
-port = "COM3"
+port = "COM39"
 
 # import if not emulating
 if not emulating_spectrometer:
