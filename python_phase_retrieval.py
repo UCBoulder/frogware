@@ -1,4 +1,3 @@
-import pynlo
 import numpy as np
 import scipy.constants as sc
 import scipy.integrate as scint
@@ -8,7 +7,32 @@ from scipy.fftpack import next_fast_len
 import scipy.interpolate as spi
 import copy
 import scipy.optimize as spo
-import mkl_fft
+
+try:
+    import mkl_fft
+
+    print("USING MKL FOR FFT'S IN PYTHON SHG FROG PHASE RETRIEVAL")
+    use_mkl = True
+except ImportError:
+    print("NOT USING MKL FOR FFT'S IN PYTHON SHG FROG PHASE RETRIEVAL")
+
+    class mkl_fft:
+        """
+        reproducing the following functions from mkl:
+            fft, ifft, rfft_numpy and irfft_numpy
+        """
+
+        def fft(x, axis=-1, forward_scale=1.0):
+            return np.fft.fft(x, axis=axis) * forward_scale
+
+        def ifft(x, axis=-1, forward_scale=1.0):
+            return np.fft.ifft(x, axis=axis) / forward_scale
+
+        def rfft_numpy(x, axis=-1, forward_scale=1.0):
+            return np.fft.rfft(x, axis=axis) * forward_scale
+
+        def irfft_numpy(x, axis=-1, forward_scale=1.0):
+            return np.fft.irfft(x, axis=axis) / forward_scale
 
 
 def normalize(x):
@@ -232,7 +256,7 @@ def calculate_spectrogram(pulse, T_delay):
 
     Args:
         pulse (object):
-            pulse instance from pynlo.light
+            pulse instance
         T_delay (1D array):
             time delay axis (mks units)
 
@@ -285,13 +309,8 @@ def load_data(path, spectrogram=None):
     Args:
         path (string):
             path to the FROG data
-        spectrogram (2D array, optional):
-            The spectrogram data going as:
-                nan wl .........
-                T_fs    x x x x
-                .       x x x x
-                .       x x x x
-                .       x x x x
+        spectrogram (2D array):
+            spectrogram, in which case path is not used
 
     Returns:
         wl_nm (1D array):
@@ -311,13 +330,12 @@ def load_data(path, spectrogram=None):
             3. frequency axis
         no alteration to the data is made besides truncation along the time
         axis to center T0
-
-        if the spectrogram is passed in, it is assumed that the spectrogram is
-        what you would get from np.genfromtxt(path), and in which case the
-        path is not used at all (could be "hello world")
     """
     if spectrogram is None:
         spectrogram = np.genfromtxt(path)
+    else:
+        assert isinstance(spectrogram, np.ndarray)
+        assert len(spectrogram.shape) == 2, "spectrogram must be a 2D array"
     T_fs = spectrogram[:, 0][1:]  # time indexes the row
     wl_nm = spectrogram[0][1:]  # wavelength indexes the column
     F_THz = sc.c * 1e-12 / (wl_nm * 1e-9)  # experimental frequency axis from wl_nm
@@ -479,6 +497,51 @@ class Pulse(TFGrid):
         self.a_t = ifft(a_v, fsc=self.dt)
 
     @property
+    def phi_v(self):
+        """
+        frequency domain phase
+
+        Returns:
+            1D array
+        """
+        return np.angle(self.a_v)
+
+    @property
+    def phi_t(self):
+        """
+        time domain phase
+
+        Returns:
+            1D array
+        """
+        return np.angle(self.a_t)
+
+    @phi_v.setter
+    def phi_v(self, phi_v):
+        """
+        sets the frequency domain phase
+
+        Args:
+            phi_v (1D array)
+        """
+        assert isinstance(phi_v, np.ndarray)
+        assert phi_v.shape == self.a_v.shape
+        self.a_v = abs(self.a_v) * np.exp(1j * phi_v)
+
+    @phi_t.setter
+    def phi_t(self, phi_t):
+        """
+        sets the time domain phase
+
+        Args:
+            phi_t (1D array)
+        """
+
+        assert isinstance(phi_t, np.ndarray)
+        assert phi_t.shape == self.a_t.shape
+        self.a_t = abs(self.a_t) * np.exp(1j * phi_t)
+
+    @property
     def p_t(self):
         """
         time domain power
@@ -600,7 +663,7 @@ class Pulse(TFGrid):
 
     @classmethod
     def clone_pulse(cls, pulse):
-        assert isinstance(pulse, Pulse) or isinstance(pulse, pynlo.light.Pulse)
+        assert isinstance(pulse, Pulse) or isinstance(pulse, Pulse)
         pulse: Pulse
         n_points = pulse.n
         v_min = pulse.v_grid[0]
@@ -733,33 +796,21 @@ class Retrieval:
 
     def load_data(self, path, spectrogram=None):
         """
-        loads the spectrogram data
+        load the data
 
         Args:
             path (string):
-                path to the FROG data
-            spectrogram (2D array, optional):
-                The spectrogram data going as:
-                    nan wl .........
-                    T_fs    x x x x
-                    .       x x x x
-                    .       x x x x
-                    .       x x x x
-
-        Notes:
-            this function extracts relevant variables from the spectrogram data:
-                1. time axis
-                2. wavelength axis
-                3. frequency axis
-            no alteration to the data is made besides truncation along the time
-            axis to center T0
-
-            if the spectrogram is passed in, it is assumed that the spectrogram
-            is what you would get from np.genfromtxt(path), and in which case
-            the path is not used at all (could be "hello world")
+                path to data
+            spectrogram (2D array):
+                spectrogram, in which case path is not used
         """
+        if spectrogram is not None:
+            assert isinstance(spectrogram, np.ndarray)
+            assert len(spectrogram.shape) == 2
+
         self._wl_nm, self._F_THz, self._T_fs, self._spectrogram = load_data(
-            path, spectrogram=spectrogram
+            path,
+            spectrogram,
         )
 
     def set_signal_freq(self, min_sig_fthz, max_sig_fthz):
@@ -824,14 +875,15 @@ class Retrieval:
             self.spectrogram[:, ind_nosig], 1e-3
         ).real
 
-    def correct_for_phase_matching(self, deg=5.5):
+    def correct_for_phase_matching(self, deg=3.576):
         """
         correct for phase-matching
 
         Args:
             deg (float, optional):
-                non-collinear angle incident into the BBO is fixed at 5.5
-                degrees
+                non-collinear angle incident into the BBO, default is 3.576
+                which is a 1/4" separation of the two beams (most updated FROG
+                build)
 
         Notes:
             the spectrogram is divided by the phase-matching curve, and then
@@ -839,14 +891,12 @@ class Retrieval:
             set_signal_freq
         """
 
-        assert deg == 5.5
-
         bbo = BBO.BBOSHG()
         R = bbo.R(
             self.wl_nm * 1e-3 * 2,
             50,
             bbo.phase_match_angle_rad(1.55),
-            BBO.deg_to_rad(5.5),
+            BBO.deg_to_rad(deg),
         )
         ind_10perc = (
             np.argmin(abs(R[300:] - 0.1)) + 300
@@ -882,7 +932,7 @@ class Retrieval:
                 2 ** 12 = 4096
 
         Notes:
-            This initializes a pulse using PyNLO with a sech envelope, whose
+            This initializes a pulse with a sech envelope, whose
             time bandwidth is set according to the intensity autocorrelation
             of the spectrogram. Realize that the spectrogram could have been
             slightly altered depending on whether it's been denoised(called by
@@ -896,9 +946,7 @@ class Retrieval:
         spl = spi.UnivariateSpline(self.T_fs, normalize(x) - 0.5, s=0)
         roots = spl.roots()
 
-        # --------------- switched to using connor's pynlo class --------------
-        # T0 = np.diff(roots[[0, -1]]) * 0.65 / 1.76
-        T0 = np.diff(roots[[0, -1]]) * 0.65  # 1.76 factor already in pulse class
+        T0 = np.diff(roots[[0, -1]])
         self._pulse = Pulse.Sech(
             NPTS,
             sc.c / (wl_max_nm * 1e-9),
@@ -1143,7 +1191,7 @@ class Retrieval:
         axp.plot(self.pulse.v_grid[ind_sig] * 1e-12, phase, color="C1")
 
         # plot the experimental spectrogram
-        ax[2].pcolormesh(self.T_fs, self.F_THz / 2, self.spectrogram.T, cmap="jet")
+        ax[2].pcolormesh(self.T_fs, self.F_THz / 2, self.spectrogram.T, cmap="CMRmap_r")
         ax[2].set_ylim(self.min_sig_fthz / 2, self.max_sig_fthz / 2)
 
         # plot the retrieved spectrogram
@@ -1156,7 +1204,7 @@ class Retrieval:
             self.T_fs,
             self.pulse.v_grid[ind_spctrmtr] * 1e-12,
             s[:, ind_spctrmtr].T,
-            cmap="jet",
+            cmap="CMRmap_r",
         )
         ax[3].set_ylim(self.min_sig_fthz / 2, self.max_sig_fthz / 2)
 
@@ -1171,3 +1219,5 @@ class Retrieval:
                 self.pulse_data.p_v * factor,
                 color="C2",
             )
+
+        return fig, ax
