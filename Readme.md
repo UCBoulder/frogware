@@ -34,7 +34,7 @@ For example, if the motor is currently homing and you hit the "step right" or "m
 I have set a buffer in the program that will not allow the motor to move within 1 micron of its limits. If one attempts to do this, it will pop an error window instead. If you don't want to have this buffer, then change edge_limit_buffer_mm in Gui_Controller.py to 0. 
 
 ## Incorporating New Hardware
-I wrote the program for a Thorlabs K-cube (KDC101) and Stellarnet's Blue-Wave spectrometer. It is quite possible that one is not using the same translation stage and spectrometer.
+I wrote the program for a Thorlabs K-cube (KDC101) and Stellarnet's Blue-Wave spectrometer. However, it is possible that one is not using the same translation stage and spectrometer.
 
 **Instructions to Incorporate New Hardware:**
 
