@@ -29,9 +29,7 @@ pool = qtc.QThreadPool.globalInstance()
 # global variables
 tol_um = 0.1  # 100 nm
 edge_limit_buffer_mm = 0.0  # 1 um
-emulating_spectrometer = False
-emulating_motor = False
-port = "COM39"
+port = "COM3"
 
 
 def dist_um_to_T_fs(value_um):
@@ -282,9 +280,10 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         ret = pr.Retrieval()
         ret.load_data("hello world", spectrogram=data)
         s = ret.spectrogram
-        autocorrelation = scint.simpson(s, x=ret.F_THz, axis=1)
-        fig = plt.figure(num="intensity autocorrelation")
-        plt.plot(ret.T_fs, autocorrelation, ".")
+        autocorrelation = scint.simpson(s, x=ret.F_THz[::-1], axis=1)
+        fig, ax = plt.subplots(1, 1, num="intensity autocorrelation")
+        ax.plot(ret.T_fs, autocorrelation, ".-")
+        fig.show()
 
 
 class MotorInterface:
