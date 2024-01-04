@@ -29,7 +29,7 @@ pool = qtc.QThreadPool.globalInstance()
 # global variables
 tol_um = 0.1  # 100 nm
 edge_limit_buffer_mm = 0.0  # 1 um
-port = "COM3"
+port = "COM31"
 
 
 def dist_um_to_T_fs(value_um):
