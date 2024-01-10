@@ -29,8 +29,6 @@ class AptMotor(apt.KDC101_PRM1Z8):
             result = struct.unpack("<BBBBBBHl", read_buffer)
             position = result[7] / self.ENC_CNT_MM
 
-            # debugging
-            print(result[7])
             return position
         else:
             # Calculate the encoder value
