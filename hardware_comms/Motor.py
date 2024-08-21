@@ -9,9 +9,7 @@ class Motor:
     class to have. This class expects an instance of util.Motor class from
     utilities.py"""
 
-    def __init__(self, motor):
-        motor: util.Motor
-        self.motor = motor
+    def __init__(self):
 
         self.T0_um = 0  # T0 position of the motor in micron
 
