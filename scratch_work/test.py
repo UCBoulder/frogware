@@ -1,9 +1,10 @@
-from hardware_comms import stellarnet_peter as snp
-import matplotlib.pyplot as plt
-import clipboard_and_style_sheet
+from pylablib.devices.Thorlabs import kinesis
 
-clipboard_and_style_sheet.style_sheet()
-
-spec = snp.Spectrometer()
-plt.figure()
-plt.plot(spec.wl_nm, spec.spectrum()[1])
+devices = kinesis.list_kinesis_devices()
+print(devices)
+motor = kinesis.KinesisMotor(devices[0][0], scale="stage")
+# print(motor.get_device_info())
+# print(motor.get_scale_units())
+# print(motor.get_scale())
+# print(motor.get_stage())
+print(motor.get_limit_switch_parameters())
