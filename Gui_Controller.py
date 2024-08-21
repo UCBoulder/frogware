@@ -1,6 +1,9 @@
 # add these to path
 import sys
 
+import hardware_comms.Spectrometer as Spectrometer
+from hardware_comms.Motor import Motor
+
 sys.path.append("Stellarnet_Python_Drivers/")
 sys.path.append("hardware_comms/")
 
@@ -99,8 +102,8 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
     def connect_motor_spectrometer(self):
         motor = apt.KDC101(port)
-        self.motor_interface = MotorInterface(util.Motor(motor))
-        self.spectrometer = util.Spectrometer(snp.Spectrometer())
+        self.motor_interface = Motor(util.Motor(motor))
+        self.spectrometer = Spectrometer.Spectrometer(snp.Spectrometer())
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)
@@ -286,74 +289,6 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         fig.show()
 
 
-class MotorInterface:
-    """To help with integrating other pieces of hardware, I was thinking to
-    keep classes in utilities.py more bare bone, and focus on hardware
-    communication there. Here I will add more things I would like the Motor
-    class to have. This class expects an instance of util.Motor class from
-    utilities.py"""
-
-    def __init__(self, motor):
-        motor: util.Motor
-        self.motor = motor
-
-        self.T0_um = 0  # T0 position of the motor in micron
-
-        # don't let the stage come closer than this to the stage limits.
-        self._safety_buffer_mm = edge_limit_buffer_mm  # 1um
-
-        self.error_window = ErrorWindow()
-
-    @property
-    def pos_um(self):
-        return self.motor.position_mm * 1e3
-
-    @property
-    def pos_fs(self):
-        # pos_fs is taken from pos_um and T0_um
-        return dist_um_to_T_fs(self.pos_um - self.T0_um)
-
-    @pos_um.setter
-    def pos_um(self, value_um):
-        # move the motor to the new position, assuming they give the motor
-        # position in mm
-        self.motor.position_mm = value_um * 1e-3
-
-    @pos_fs.setter
-    def pos_fs(self, value_fs):
-        # pos_fs is taken from pos_um, so just set pos_um
-        # setting pos_um moves the motor
-        self.pos_um = T_fs_to_dist_um(value_fs) + self.T0_um
-
-    def move_by_fs(self, value_fs):
-        # obtain the distance to move in micron and meters
-        value_um = T_fs_to_dist_um(value_fs)
-        value_mm = value_um * 1e-3
-
-        # move the motor to the new position and update the position in micron
-        self.motor.move_by(value_mm)
-
-    def move_by_um(self, value_um):
-        value_mm = value_um * 1e-3
-
-        # move the motor to the new position and update the position in micron
-        self.motor.move_by(value_mm)
-
-    def value_exceeds_limits(self, value_um):
-        predicted_pos_um = value_um + self.pos_um
-        max_limit_um = self.motor.max_pos_mm * 1e3
-        min_limit_um = self.motor.min_pos_mm * 1e3
-        buffer_um = self._safety_buffer_mm * 1e3
-
-        if (predicted_pos_um < min_limit_um + buffer_um) or (
-            predicted_pos_um > max_limit_um - buffer_um
-        ):
-            raise_error(self.error_window, "too close to stage limits (within 1um)")
-            return True
-        else:
-            return False
-
-
 class FrogLand:
     """
     This class is the main user interface. It expects an instance of
@@ -369,8 +304,8 @@ class FrogLand:
         """
 
         main_window: MainWindow
-        motor_interface: MotorInterface
-        spectrometer: util.Spectrometer
+        motor_interface: Motor
+        spectrometer: Spectrometer.Spectrometer
         self.main_window = main_window
         self.spectrometer = spectrometer
         self.motor_interface = motor_interface
@@ -1291,7 +1226,7 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
     def __init__(self, motor_interface, event_to_clear):
         super().__init__()
 
-        motor_interface: MotorInterface
+        motor_interface: Motor
         self.motor_interface = motor_interface
         self.signal = Signal()
         self.started = self.signal.started
@@ -1338,7 +1273,7 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
 
         # this class takes as input the spectrometer which it will
         # continuously pull the the spectrum from
-        spectrometer: util.Spectrometer
+        spectrometer: Spectrometer.Spectrometer
         self.spectrometer = spectrometer
         # also initialize a signal so you can transmit the spectrum to the
         # main Continuous Update class
