@@ -1,18 +1,12 @@
 import utilities as util
-from Gui_Controller import ErrorWindow, T_fs_to_dist_um, dist_um_to_T_fs, edge_limit_buffer_mm, raise_error
+from Gui_Controller import ErrorWindow, edge_limit_buffer_mm, raise_error
 
+C_MKS = 299792458
 
 class Motor:
-    """To help with integrating other pieces of hardware, I was thinking to
-    keep classes in utilities.py more bare bone, and focus on hardware
-    communication there. Here I will add more things I would like the Motor
-    class to have. This class expects an instance of util.Motor class from
-    utilities.py"""
-
     def __init__(self):
 
         self.T0_um = 0  # T0 position of the motor in micron
-
         # don't let the stage come closer than this to the stage limits.
         self._safety_buffer_mm = edge_limit_buffer_mm  # 1um
 
@@ -66,3 +60,18 @@ class Motor:
             return True
         else:
             return False
+    @staticmethod
+    def dist_um_to_T_fs(value_um):
+        """
+        :param value_um: delta x in micron
+        :return value_fs: delta t in femtosecond
+        """
+        return (2 * value_um / C_MKS) * 1e9
+
+    @staticmethod
+    def T_fs_to_dist_um(value_fs):
+        """
+        :param value_fs: delta t in femtosecond
+        :return value_um: delta x in micron
+        """
+        return (C_MKS * value_fs / 2) * 1e-9

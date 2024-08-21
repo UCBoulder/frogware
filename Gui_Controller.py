@@ -35,20 +35,7 @@ edge_limit_buffer_mm = 0.0  # 1 um
 port = "COM34"
 
 
-def dist_um_to_T_fs(value_um):
-    """
-    :param value_um: delta x in micron
-    :return value_fs: delta t in femtosecond
-    """
-    return (2 * value_um / c_mks) * 1e9
 
-
-def T_fs_to_dist_um(value_fs):
-    """
-    :param value_fs: delta t in femtosecond
-    :return value_um: delta x in micron
-    """
-    return (c_mks * value_fs / 2) * 1e-9
 
 
 # Signal class to be used for Runnable
