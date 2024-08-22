@@ -1,4 +1,4 @@
-from Motor import Motor
+from hardware_comms.device_interfaces import Motor
 from pylablib.devices.Thorlabs import KinesisMotor
 class ThorlabsKinesisMotor(Motor):
     def __init__(self, serial_no: int):

@@ -1,8 +1,6 @@
 # add these to path
 import sys
 
-import hardware_comms.Spectrometer as Spectrometer
-from hardware_comms.Motor import Motor
 
 sys.path.append("Stellarnet_Python_Drivers/")
 sys.path.append("hardware_comms/")
@@ -12,17 +10,17 @@ import PyQt5.QtCore as qtc
 from Window import Ui_MainWindow
 import PlotAndTableFunctions as plotf
 import numpy as np
-import utilities as util
 from Error import Ui_Form
 import PyQt5.QtGui as qtg
-from scipy.constants import c as c_mks
 import gc
 import threading
-from hardware_comms import stellarnet_peter as snp
-from hardware_comms import MotorClassFromAptProtocolConnor as apt
 import python_phase_retrieval as pr
 import scipy.integrate as scint
 import matplotlib.pyplot as plt
+
+from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices 
+from hardware_comms.ThorlabsKinesisMotor import ThorlabsKinesisMotor
+from hardware_comms.device_interfaces import Motor, Spectrometer
 
 
 # will be used later on for any continuous update of the display that lasts more
@@ -33,10 +31,6 @@ pool = qtc.QThreadPool.globalInstance()
 tol_um = 0.1  # 100 nm
 edge_limit_buffer_mm = 0.0  # 1 um
 port = "COM34"
-
-
-
-
 
 # Signal class to be used for Runnable
 class Signal(qtc.QObject):
@@ -74,7 +68,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
         self.connect_motor_spectrometer()
 
-        self.frog_land = FrogLand(self, self.motor_interface, self.spectrometer)
+        self.frog_land = FrogLand(self, self.motor, self.spectrometer)
 
         self.set_hardware_params()
         self.update_hardware_from_table_int_time()
@@ -88,9 +82,8 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         self.frog_land.stop_all_runnables()
 
     def connect_motor_spectrometer(self):
-        motor = apt.KDC101(port)
-        self.motor_interface = Motor(util.Motor(motor))
-        self.spectrometer = Spectrometer.Spectrometer(snp.Spectrometer())
+        self.motor = ThorlabsKinesisMotor(list_kinesis_devices[0][0])
+        self.spectrometer = Spectrometer(snp.Spectrometer())
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)
@@ -283,19 +276,19 @@ class FrogLand:
     function.
     """
 
-    def __init__(self, main_window, motor_interface, spectrometer):
+    def __init__(self, main_window, motor, spectrometer):
         """
         :param main_window:
-        :param motor_interface:
+        :param motor:
         :param spectrometer:
         """
 
         main_window: MainWindow
-        motor_interface: Motor
+        motor: Motor
         spectrometer: Spectrometer.Spectrometer
         self.main_window = main_window
         self.spectrometer = spectrometer
-        self.motor_interface = motor_interface
+        self.motor = motor
 
         # get convenient access to relevant main window attributes
         self.btn_start = self.main_window.btn_start_cnt_update
@@ -381,7 +374,7 @@ class FrogLand:
         # update the display
         self.update_stepsize_from_le_fs()
         self.update_stepsize_spectrogram_from_le_fs()
-        self.update_current_pos(self.motor_interface.pos_um)
+        self.update_current_pos(self.motor.pos_um)
 
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
@@ -438,7 +431,7 @@ class FrogLand:
 
             # create a runnable
             self.runnable_update_motor = UpdateMotorPositionRunnable(
-                motor_interface=self.motor_interface,
+                motor=self.motor,
                 event_to_clear=self.motor_runnable_exists,
             )
 
@@ -595,7 +588,7 @@ class FrogLand:
     @property
     def curr_mot_pos_um(self):
         if self._curr_mot_pos_um is None:
-            return self.motor_interface.pos_um
+            return self.motor.pos_um
         else:
             return self._curr_mot_pos_um
 
@@ -605,7 +598,7 @@ class FrogLand:
 
     @property
     def T0_um(self):
-        return self.motor_interface.T0_um
+        return self.motor.T0_um
 
     @property
     def step_size_um(self):
@@ -635,7 +628,7 @@ class FrogLand:
 
     @T0_um.setter
     def T0_um(self, value_um):
-        self.motor_interface.T0_um = value_um
+        self.motor.T0_um = value_um
 
     @move_to_pos_fs.setter
     def move_to_pos_fs(self, value_fs):
@@ -877,9 +870,9 @@ class FrogLand:
             raise_error(self.error_window, "step size cannot exceed 50 fs")
             return
 
-        exceed = self.motor_interface.value_exceeds_limits(step_size_um)
+        exceed = self.motor.value_exceeds_limits(step_size_um)
         if not exceed:
-            self.motor_interface.move_by_um(step_size_um)
+            self.motor.move_by_um(step_size_um)
 
             self.create_runnable("motor")
             self.connect_runnable("motor")
@@ -903,9 +896,9 @@ class FrogLand:
             raise_error(self.error_window, "step size cannot exceed 50 fs")
             return
 
-        exceed = self.motor_interface.value_exceeds_limits(-step_size_um)
+        exceed = self.motor.value_exceeds_limits(-step_size_um)
         if not exceed:
-            self.motor_interface.move_by_um(-step_size_um)
+            self.motor.move_by_um(-step_size_um)
 
             self.create_runnable("motor")
             self.connect_runnable("motor")
@@ -924,11 +917,11 @@ class FrogLand:
 
         # only retrieve the position once!
         motor_pos_um = self.curr_mot_pos_um
-        exceed = self.motor_interface.value_exceeds_limits(target_um - motor_pos_um)
+        exceed = self.motor.value_exceeds_limits(target_um - motor_pos_um)
         if not exceed:
             self.btn_move_to_pos.setText("stop motion")
 
-            self.motor_interface.pos_um = target_um
+            self.motor.pos_um = target_um
 
             # create a runnable instance and connect the relevant signals and
             # slots
@@ -940,7 +933,7 @@ class FrogLand:
 
     def update_current_pos(self, pos_um):
         self.curr_mot_pos_um = pos_um
-        motor_pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
+        motor_pos_fs = dist_um_to_T_fs(pos_um - self.motor.T0_um)
         self.lcd_current_pos_um.display("%.3f" % pos_um)
         self.lcd_current_pos_fs.display("%.3f" % motor_pos_fs)
 
@@ -1013,7 +1006,7 @@ class FrogLand:
             self.stop_motor()
             return
 
-        self.motor_interface.motor.home_motor(blocking=False)
+        self.motor.motor.home_motor(blocking=False)
 
         self.create_runnable("motor")
         self.connect_runnable("motor")
@@ -1100,7 +1093,7 @@ class CollectSpectrogram:
     def __init__(self, frogland):
         frogland: FrogLand
         self.frogland = frogland
-        self.motor_interface = frogland.motor_interface
+        self.motor = frogland.motor
         self.spectrometer = frogland.spectrometer
 
         self.signal = Signal()
@@ -1168,7 +1161,7 @@ class CollectSpectrogram:
         # intensities = np.mean(Intensities, 0)
         # __________________________________________________________
 
-        pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
+        pos_fs = dist_um_to_T_fs(pos_um - self.motor.T0_um)
         self.signal.progress.emit((wavelengths, intensities, self.n, pos_fs))
 
     def step_one(self):
@@ -1185,7 +1178,7 @@ class CollectSpectrogram:
         else:
             pos_um = self.frogland.curr_mot_pos_um
 
-            pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
+            pos_fs = dist_um_to_T_fs(pos_um - self.motor.T0_um)
             print("point", self.n + 1, ", ", self.end_pos_fs - pos_fs, "fs remaining")
 
             self.emit_data(pos_um)
@@ -1210,11 +1203,11 @@ class CollectSpectrogram:
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
-    def __init__(self, motor_interface, event_to_clear):
+    def __init__(self, motor, event_to_clear):
         super().__init__()
 
-        motor_interface: Motor
-        self.motor_interface = motor_interface
+        motor: Motor
+        self.motor = motor
         self.signal = Signal()
         self.started = self.signal.started
         self.progress = self.signal.progress
@@ -1235,11 +1228,11 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self._stop_initiated = True
 
     def run(self):
-        while self.motor_interface.motor.is_in_motion:
+        while self.motor.motor.is_in_motion:
             if self._stop_initiated:
-                self.motor_interface.motor.stop_motor()
+                self.motor.motor.stop_motor()
 
-            pos = self.motor_interface.pos_um
+            pos = self.motor.pos_um
             self.progress.emit(pos)
             # time.sleep(.001)
 
@@ -1247,7 +1240,7 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         # clear the event
         self.event_to_clear.clear()
 
-        pos = self.motor_interface.pos_um
+        pos = self.motor.pos_um
         self.progress.emit(pos)
         self.finished.emit(None)
 
