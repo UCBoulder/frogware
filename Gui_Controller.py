@@ -2,8 +2,7 @@
 import sys
 
 
-sys.path.append("Stellarnet_Python_Drivers/")
-sys.path.append("hardware_comms/")
+#sys.path.append("hardware_comms/")
 
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
@@ -20,7 +19,9 @@ import matplotlib.pyplot as plt
 
 from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices 
 from hardware_comms.ThorlabsKinesisMotor import ThorlabsKinesisMotor
+from hardware_comms.OceanOpticsSpectrometer import OceanOpticsSpectrometer
 from hardware_comms.device_interfaces import Motor, Spectrometer
+from hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
 
 
 # will be used later on for any continuous update of the display that lasts more
@@ -63,6 +64,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
         self.show()
+        #TODO handle error windows (with error catching?)
 
         self.error_window = ErrorWindow()
 
@@ -81,9 +83,12 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         print("Frogging has stopped")
         self.frog_land.stop_all_runnables()
 
+    '''Connect specific motor/spectrometer objects. Must implement
+    the Motor/Spectrometer interface'''
     def connect_motor_spectrometer(self):
         self.motor = ThorlabsKinesisMotor(list_kinesis_devices[0][0])
-        self.spectrometer = Spectrometer(snp.Spectrometer())
+        #TODO
+        self.spectrometer = None
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)
@@ -276,16 +281,7 @@ class FrogLand:
     function.
     """
 
-    def __init__(self, main_window, motor, spectrometer):
-        """
-        :param main_window:
-        :param motor:
-        :param spectrometer:
-        """
-
-        main_window: MainWindow
-        motor: Motor
-        spectrometer: Spectrometer.Spectrometer
+    def __init__(self, main_window: MainWindow, motor: Motor, spectrometer: Spectrometer):
         self.main_window = main_window
         self.spectrometer = spectrometer
         self.motor = motor
