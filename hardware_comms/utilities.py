@@ -1,8 +1,7 @@
-"""This file should handle all the direct hardware interfacing"""
-
-
+from scipy.constants import c as C_MKS
 class Motor:
     """
+    DEPRECATED
     This class expects a motor instance. You can incorporate a motor and pass
     it to here by creating a motor class with the following attributes
     and methods:
@@ -77,3 +76,17 @@ class Motor:
 
     def stop_motor(self):
         self.motor.stop_profiled()
+
+def dist_um_to_T_fs(value_um):
+    """
+    :param value_um: delta x in micron
+    :return value_fs: delta t in femtosecond
+    """
+    return (2 * value_um / C_MKS) * 1e9
+
+def T_fs_to_dist_um(value_fs):
+    """
+    :param value_fs: delta t in femtosecond
+    :return value_um: delta x in micron
+    """
+    return (C_MKS * value_fs / 2) * 1e-9
