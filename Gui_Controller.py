@@ -20,8 +20,9 @@ import matplotlib.pyplot as plt
 from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices 
 from hardware_comms.ThorlabsKinesisMotor import ThorlabsKinesisMotor
 from hardware_comms.OceanOpticsSpectrometer import OceanOpticsSpectrometer
-from hardware_comms.device_interfaces import Motor, Spectrometer
+from hardware_comms.device_interfaces import LinearMotor, Spectrometer
 from hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
+from seabreeze.spectrometers import Spectrometer as ooSpec
 
 
 # will be used later on for any continuous update of the display that lasts more
@@ -83,12 +84,14 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         print("Frogging has stopped")
         self.frog_land.stop_all_runnables()
 
-    '''Connect specific motor/spectrometer objects. Must implement
-    the Motor/Spectrometer interface'''
+    '''
+    Connect specific motor/spectrometer objects. Must implement
+    the Motor/Spectrometer interface
+    '''
     def connect_motor_spectrometer(self):
         self.motor = ThorlabsKinesisMotor(list_kinesis_devices[0][0])
-        #TODO
-        self.spectrometer = None
+        self.motor.travel_limits_um = (0, 25e6)
+        self.spectrometer = OceanOpticsSpectrometer(ooSpec.from_first_available())
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)
@@ -277,11 +280,11 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 class FrogLand:
     """
     This class is the main user interface. It expects an instance of
-    MainWindow, MotorInterface, and util.Spectrometer class in the init
+    MainWindow, LinearMotor, and Spectrometer class in the init
     function.
     """
 
-    def __init__(self, main_window: MainWindow, motor: Motor, spectrometer: Spectrometer):
+    def __init__(self, main_window: MainWindow, motor: LinearMotor, spectrometer: Spectrometer):
         self.main_window = main_window
         self.spectrometer = spectrometer
         self.motor = motor
@@ -393,9 +396,9 @@ class FrogLand:
         self.Taxis_fs = None
         self.spectrogram_now_running = False
 
-        self.ambient_intensity = np.zeros(len(self.spectrometer.wavelengths))
-        self.intensities = np.zeros(len(self.spectrometer.wavelengths))
-        self.bckgnd_subtrd = np.zeros(len(self.spectrometer.wavelengths))
+        self.ambient_intensity = np.zeros(len(self.spectrometer.wavelengths()))
+        self.intensities = np.zeros(len(self.spectrometer.wavelengths()))
+        self.bckgnd_subtrd = np.zeros(len(self.spectrometer.wavelengths()))
 
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
@@ -811,10 +814,10 @@ class FrogLand:
             self.stop_continuous_update()
             return
 
-        X = self.spectrometer.get_spectrum()
+        X = self.spectrometer.spectrum()
         self.plot_update(X)
         lims = np.array([0, max(self.intensities)])
-        self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths, lims)
+        self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths(), lims)
 
         self.btn_start.setText("Stop \n Continuous Update")
 
@@ -1002,7 +1005,7 @@ class FrogLand:
             self.stop_motor()
             return
 
-        self.motor.motor.home_motor(blocking=False)
+        self.motor.home(blocking=False)
 
         self.create_runnable("motor")
         self.connect_runnable("motor")
@@ -1051,10 +1054,10 @@ class FrogLand:
 
     def _prep_spectrogram(self):
         if np.all(self.intensities == 0):
-            X = self.spectrometer.get_spectrum()
+            X = self.spectrometer.spectrum()
             self.plot_update(X)
             lims = np.array([0, max(self.intensities)])
-            self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths, lims)
+            self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths(), lims)
 
         self.btn_collect_spectrogram.setText("Stop \n Collection")
 
@@ -1064,7 +1067,7 @@ class FrogLand:
         self.plot2d_window.plotwidget.set_cmap("jet")
 
     def _setup_2dplot(self):
-        self.wl_axis = self.spectrometer.wavelengths
+        self.wl_axis = self.spectrometer.wavelengths()
         self.plot2d_window.plotwidget.scale_axes(
             x=self.Taxis_fs, y=self.wl_axis, format="xy"
         )
@@ -1086,8 +1089,7 @@ class FrogLand:
 
 
 class CollectSpectrogram:
-    def __init__(self, frogland):
-        frogland: FrogLand
+    def __init__(self, frogland: FrogLand):
         self.frogland = frogland
         self.motor = frogland.motor
         self.spectrometer = frogland.spectrometer
@@ -1143,7 +1145,7 @@ class CollectSpectrogram:
 
     def emit_data(self, pos_um):
         # collect spectrum
-        wavelengths, intensities = self.spectrometer.get_spectrum()
+        wavelengths, intensities = self.spectrometer.spectrum()
 
         """trying to average without detector saturation. Doesn't really help """
         # __________________________________________________________
@@ -1199,10 +1201,9 @@ class CollectSpectrogram:
 
 
 class UpdateMotorPositionRunnable(qtc.QRunnable):
-    def __init__(self, motor, event_to_clear):
+    def __init__(self, motor: LinearMotor, event_to_clear: threading.Event):
         super().__init__()
 
-        motor: Motor
         self.motor = motor
         self.signal = Signal()
         self.started = self.signal.started
@@ -1210,7 +1211,6 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self.finished = self.signal.finished
         self._stop_initiated = False
 
-        event_to_clear: threading.Event
         self.event_to_clear = event_to_clear
 
     """
@@ -1224,9 +1224,9 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self._stop_initiated = True
 
     def run(self):
-        while self.motor.motor.is_in_motion:
+        while self.motor.is_in_motion:
             if self._stop_initiated:
-                self.motor.motor.stop_motor()
+                self.motor.stop_motor()
 
             pos = self.motor.pos_um
             self.progress.emit(pos)
@@ -1244,12 +1244,11 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
 class UpdateSpectrumRunnable(qtc.QRunnable):
     """Runnable class for the ContinuousUpdate class"""
 
-    def __init__(self, spectrometer, event_to_clear, event_to_set):
+    def __init__(self, spectrometer: Spectrometer, event_to_clear, event_to_set):
         super().__init__()
 
         # this class takes as input the spectrometer which it will
         # continuously pull the the spectrum from
-        spectrometer: Spectrometer.Spectrometer
         self.spectrometer = spectrometer
         # also initialize a signal so you can transmit the spectrum to the
         # main Continuous Update class
@@ -1274,7 +1273,7 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
         # while stop is false, continuously get the spectrum
         while not self._stop:
             # get the spectrum
-            wavelengths, intensities = self.spectrometer.get_spectrum()
+            wavelengths, intensities = self.spectrometer.spectrum()
             # emit the spectrum as a signal
             self.progress.emit([wavelengths, intensities])
 

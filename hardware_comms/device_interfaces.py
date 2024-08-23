@@ -1,158 +1,190 @@
-from Gui_Controller import ErrorWindow, edge_limit_buffer_mm, raise_error
 from abc import ABC, abstractmethod
-from scipy.constants import c as C_MKS
+from utilities import T_fs_to_dist_um, dist_um_to_T_fs
+import numpy as np
+'''
+Abstract class for linear motors
+'''
+class LinearMotor(ABC):
+    '''
+    Tuple of the software limits for the stage
+    (lower, upper) in microns
+    '''
+    @property
+    def travel_limits_um(self) -> tuple[float]:
+        if self._travel_limits is None:
+            raise LimitsNotSetException("Make sure the motor software limits are set")
+        return self._travel_limits
+    
+    @travel_limits_um.setter
+    def travel_limits_um(self, limits: tuple[float]) -> None:
+        self._travel_limits = limits[:2]
+    
+    '''
+    Location of the stage corresponding to time zero 
+    (i.e. the center of the FROG trace)
+    '''
+    @property
+    def T0_um(self) -> float:
+        if self._T0_um is None:
+            try: 
+                self._read_T0_from_file()
+            except FileNotFoundError:
+                self._T0_um = self.pos_um
+                self._write_T0_to_file()
+        return self._T0_um
+    
+    @T0_um.setter
+    def T0_um(self, dist_um: float):
+        self._T0_um = dist_um
 
-class Motor(ABC):
-    def __init__(self):
-        self.T0_um = 0  # T0 position of the motor in micron
-        # don't let the stage come closer than this to the stage limits.
-        self._safety_buffer_mm = edge_limit_buffer_mm  # 1um
-
-        self.error_window = ErrorWindow()
-
+    '''
+    Absolute location of the stage (in microns). 
+    '''
     @property
     @abstractmethod
-    def pos_um(self):
+    def pos_um(self) -> float:
         pass
         
-
-    @property
-    @abstractmethod
-    def pos_fs(self):
-        # pos_fs is taken from pos_um and T0_um
-        pass
-        return dist_um_to_T_fs(self.pos_um - self.T0_um)
-
     @pos_um.setter
     @abstractmethod
-    def pos_um(self, value_um):
-        # move the motor to the new position, assuming they give the motor
-        # position in mm
+    def pos_um(self, value_um: float) -> None:
         pass
-        self.motor.position_mm = value_um * 1e-3
+
+    '''
+    Absolute location of the stage (in femtoseconds,
+    with respect to time zero)
+    Should raise a StageOutOfBoundsException if it
+    would exceed the software limits.
+    '''
+    @property
+    def pos_fs(self) -> float:
+        return dist_um_to_T_fs(self.pos_um - self.T0_um)
 
     @pos_fs.setter
+    def pos_fs(self, value_fs: float) -> None:
+        self.pos_um = self.T0_um + T_fs_to_dist_um(value_fs)
+    
+    '''
+    Move the relative position of the stage (femtosecond units)
+    Should raise a StageOutOfBoundsException if it
+    would exceed the software limits.
+    '''
+    def move_by_fs(self, value_fs: float) -> None:
+        self.move_by_um(T_fs_to_dist_um(value_fs))
+
+    '''
+    Move the relative position of the stage (micron units)
+    Should raise a StageOutOfBoundsException if it
+    would exceed the software limits.
+    '''
     @abstractmethod
-    def pos_fs(self, value_fs):
-        # pos_fs is taken from pos_um, so just set pos_um
-        # setting pos_um moves the motor
-        self.pos_um = T_fs_to_dist_um(value_fs) + self.T0_um
-
-    @abstractmethod
-    def move_by_fs(self, value_fs):
-        # obtain the distance to move in micron and meters
-        value_um = T_fs_to_dist_um(value_fs)
-        value_mm = value_um * 1e-3
-
-        # move the motor to the new position and update the position in micron
-        self.motor.move_by(value_mm)
-
-    @abstractmethod
-    def move_by_um(self, value_um):
-        value_mm = value_um * 1e-3
-
-        # move the motor to the new position and update the position in micron
-        self.motor.move_by(value_mm)
-
-    @abstractmethod
-    def value_exceeds_limits(self, value_um):
-        predicted_pos_um = value_um + self.pos_um
-        max_limit_um = self.motor.max_pos_mm * 1e3
-        min_limit_um = self.motor.min_pos_mm * 1e3
-        buffer_um = self._safety_buffer_mm * 1e3
-
-        if (predicted_pos_um < min_limit_um + buffer_um) or (
-            predicted_pos_um > max_limit_um - buffer_um
-        ):
-            raise_error(self.error_window, "too close to stage limits (within 1um)")
-            return True
-        else:
-            return False
-    @staticmethod
-    def dist_um_to_T_fs(value_um):
-        """
-        :param value_um: delta x in micron
-        :return value_fs: delta t in femtosecond
-        """
-        return (2 * value_um / C_MKS) * 1e9
-
-    @staticmethod
-    def T_fs_to_dist_um(value_fs):
-        """
-        :param value_fs: delta t in femtosecond
-        :return value_um: delta x in micron
-        """
-        return (C_MKS * value_fs / 2) * 1e-9
-
-
-class Spectrometer(ABC):
-    """
-    This class expects a spectrometer instance. You can incorporate a
-    spectrometer and pass it to here by creating a spectrometer class with
-    the following attributes and methods:
-
-    methods:
-
-        1. spectrum(): returns wavelengths, intensities
-
-        2. wavelengths(): returns wavelengths
-
-        3. integration_time_micros(integration_time_micros): sets the
-        integration time in microseconds
-
-
-    attributes:
-
-        1. integration_time_micros_limits: [min_int_time_us, max_int_time_us]
-
-    """
-
-    def __init__(self, spectrometer):
-        self.spectrometer = spectrometer
-
-        # initialize the integration time and number of scans to average to some value, and then update the actual
-        # spectrometer integration time in MainWindow (so the value here doesn't matter)
-        self._integration_time_micros = 30000
-        self._scans_to_avg = 1
-
-    @abstractmethod
-    def get_spectrum(self):
-        """
-        :return: wavelengths, intensities
-        """
+    def move_by_um(self, value_um: float) -> None:
         pass
+
+    '''
+    Move to an absolute location (micron units).
+    Should raise a StageOutOfBoundsException if it
+    would exceed the software limits.
+    '''
+    @abstractmethod
+    def move_to_um(self, value_um: float) -> None:
+        pass
+
+    '''
+    Home the stage. blocking indicates whether the program waits until the operation
+    is complete
+    '''
+    @abstractmethod
+    def home(self, blocking: bool) -> None:
+        pass
+
+    '''
+    Checks if the stage is in motion
+    '''
+    @abstractmethod
+    def is_in_motion(self) -> bool:
+        pass 
+    
+    '''
+    Stops the stage, interrupting any current operations.
+    '''
+    @abstractmethod
+    def stop_motor(self, blocking: bool) -> None:
+        pass
+    
+    '''
+    Saves T0 to T0_um.txt
+    '''
+    def _read_T0_from_file(self) -> None:
+        with open("T0_um.txt", "r") as file:
+            self._T0_um = float(file.readline())
+
+    '''
+    Reads T0 from T0_um.txt
+    '''
+    def _write_T0_to_file(self) -> None:
+        with open("T0_um.txt", "w") as file:
+            file.write(self._T0_um)
+
+'''
+Abstract class for spectrometers
+'''
+class Spectrometer(ABC):
+
+    '''Returns the intensities (in arbitrary units)'''
+    @abstractmethod
+    def intensities(self) -> np.ndarray[np.float_]:
+        pass
+
+    '''Returns the wavelength bins (in nanometeres) '''
+    @abstractmethod
+    def wavelengths(self) -> np.ndarray[np.float_]:
+        pass
+
+    '''Returns a 2-D list of the wavelengths (0) and intensities (1)'''
+    @abstractmethod
+    def spectrum(self) -> np.ndarray[np.float_]:
+        pass
+
+    '''Reads the integration time in microseconds'''
     @property
     @abstractmethod
-    def wavelengths(self):
-        return self.spectrometer.wavelengths()
+    def integration_time_micros(self) -> int:
+        pass
 
-    @property
-    @abstractmethod
-    def integration_time_micros(self):
-        return self._integration_time_micros
-
+    '''Sets the integration time in microseconds'''
     @integration_time_micros.setter
     @abstractmethod
-    def integration_time_micros(self, value):
-        self._integration_time_micros = value
-        self.spectrometer.integration_time_micros(self._integration_time_micros)
+    def integration_time_micros(self, value) -> None:
+        pass
 
+    '''
+    Reads the number of scans averaged together in each
+    spectrum
+    '''
     @property
     @abstractmethod
-    def scans_to_avg(self):
-        return self._scans_to_avg
+    def scans_to_avg(self) -> int:
+        pass
 
+    '''Sets the number of scans averaged together in each spectrum'''
     @scans_to_avg.setter
     @abstractmethod
-    def scans_to_avg(self, N):
-        self._scans_to_avg = N
-        self.spectrometer.set_scans_to_average(N)
+    def scans_to_avg(self, N) -> None:
+        pass
 
     @property
     @abstractmethod
-    def integration_time_micros_limit(self):
-        """
-        The Spectrometer class already has a built in function to check that
-        you don't set the integration time beyond these limits
-        """
-        return self.spectrometer.integration_time_micros_limitsclass 
+    def integration_time_micros_limit(self) -> tuple[int,int]:
+        pass
+
+class StageOutOfBoundsException(Exception):
+    pass
+
+class LimitsNotSetException(Exception):
+    pass
+
+class SpectrometerIntegrationException(Exception):
+    pass
+        
+        
