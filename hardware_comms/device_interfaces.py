@@ -38,18 +38,28 @@ class LinearMotor(ABC):
         self._T0_um = dist_um
 
     '''
-    Absolute location of the stage (in microns). 
+    Locally saved location of the stage (in microns). 
     '''
     @property
-    @abstractmethod
     def pos_um(self) -> float:
-        pass
+        if self._pos_um is None:
+            self._pos_um = self.read_hw_pos_um()
+        else:
+            return
         
     @pos_um.setter
     @abstractmethod
     def pos_um(self, value_um: float) -> None:
+        self._pos_um = value_um
+    
+    '''
+    Get the location of the stage
+    according to the hardware (in microns)
+    '''
+    @abstractmethod
+    def read_hw_pos_um(self) -> float:
         pass
-
+        
     '''
     Absolute location of the stage (in femtoseconds,
     with respect to time zero)
@@ -109,7 +119,7 @@ class LinearMotor(ABC):
     Stops the stage, interrupting any current operations.
     '''
     @abstractmethod
-    def stop_motor(self, blocking: bool) -> None:
+    def stop(self, blocking: bool) -> None:
         pass
     
     '''
@@ -179,12 +189,19 @@ class Spectrometer(ABC):
         pass
 
 class StageOutOfBoundsException(Exception):
-    pass
+    def __init__(self, message):
+        self.message = message
 
 class StageLimitsNotSetException(Exception):
-    pass
+    def __init__(self, message):
+        self.message = message
 
 class SpectrometerIntegrationException(Exception):
-    pass
+    def __init__(self, message):
+        self.message = message
+
+class SpectrometerAverageException(Exception):
+    def __init__(self, message):
+        self.message = message
         
         

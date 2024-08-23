@@ -1,4 +1,4 @@
-from device_interfaces import Spectrometer, SpectrometerIntegrationException
+from device_interfaces import Spectrometer, SpectrometerIntegrationException, SpectrometerAverageException
 from seabreeze.spectrometers import Spectrometer as ooSpec
 import numpy as np
 class OceanOpticsSpectrometer(Spectrometer):
@@ -27,8 +27,11 @@ class OceanOpticsSpectrometer(Spectrometer):
 
     @integration_time_micros.setter
     def integration_time_micros(self, value):
-        self._integration_time_micros = value
-        self.spectrometer.integration_time_micros(value)
+        if not(self.integration_time_micros_limit[0] <= value <= self.integration_time_micros_limit[1]):
+            raise SpectrometerIntegrationException('''Integration time exceeds limits''')
+        else:
+            self._integration_time_micros = value
+            self.spectrometer.integration_time_micros(value)
 
     @property
     def scans_to_avg(self):
@@ -38,9 +41,12 @@ class OceanOpticsSpectrometer(Spectrometer):
     Only works when using cseabreeze backend (provided by Ocean Optics)
     '''
     @scans_to_avg.setter
-    def scans_to_avg(self, N):
-        self._scans_to_avg = N
-        self.spectrometer.f.spectrum_processing.set_scans_to_average(N)
+    def scans_to_avg(self, N: int):
+        if N <= 0:
+            raise SpectrometerAverageException("Spectrometer must average at least 1 scan")
+        else:
+            self._scans_to_avg = N
+            self.spectrometer.f.spectrum_processing.set_scans_to_average(N)
 
     @property
     def integration_time_micros_limit(self):

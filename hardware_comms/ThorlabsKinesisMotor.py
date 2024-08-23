@@ -21,18 +21,17 @@ class ThorlabsKinesisMotor(LinearMotor):
     def pos_um(self):
         # default units are (m)
         if self._pos_um is None:
-            self._pos_um = 1e6 * self.motor.get_position()
+            self._pos_um = self.read_hw_pos_um()
             return self._pos_um
         else:
             return self._pos_um
 
-    @pos_um.setter
-    def pos_um(self, loc_um):
-        self._pos_um = loc_um
+    def read_hw_pos_um(self):
+        return 1e6 * self.motor.get_position()
 
         
     def move_to_um(self, loc_um: float):
-        if not(self.travel_limits_um[0] < loc_um < self.travel_limits_um[1]):
+        if not(self.travel_limits_um[0] <= loc_um <= self.travel_limits_um[1]):
             raise StageOutOfBoundsException("Location would exceed software limits")
         else:
             # default units are (m) 
@@ -51,7 +50,7 @@ class ThorlabsKinesisMotor(LinearMotor):
             # TODO Stored position may differ slightly from stage position
             self.pos_um = self.motor.get_position(scale=True)
 
-    def stop_motor(self, blocking=True) -> None:
+    def stop(self, blocking=True) -> None:
         self.motor.stop(sync=blocking)
 
     def is_in_motion(self) -> bool:

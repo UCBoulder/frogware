@@ -18,9 +18,9 @@ import scipy.integrate as scint
 import matplotlib.pyplot as plt
 
 from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices 
-from hardware_comms.ThorlabsKinesisMotor import ThorlabsKinesisMotor
-from hardware_comms.OceanOpticsSpectrometer import OceanOpticsSpectrometer
-from hardware_comms.device_interfaces import LinearMotor, Spectrometer
+from hardware_comms.ThorlabsKinesisMotor import ThorlabsKinesisMotor 
+from hardware_comms.OceanOpticsSpectrometer import OceanOpticsSpectrometer 
+from hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, StageLimitsNotSetException, SpectrometerIntegrationException
 from hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
 from seabreeze.spectrometers import Spectrometer as ooSpec
 
@@ -65,7 +65,6 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
         self.show()
-        #TODO handle error windows (with error catching?)
 
         self.error_window = ErrorWindow()
 
@@ -86,7 +85,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
     '''
     Connect specific motor/spectrometer objects. Must implement
-    the Motor/Spectrometer interface
+    the LinearMotor/Spectrometer interface
     '''
     def connect_motor_spectrometer(self):
         self.motor = ThorlabsKinesisMotor(list_kinesis_devices[0][0])
@@ -119,33 +118,15 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         self.tableWidget.setItem(0, 1, item_ll)
         self.tableWidget.setItem(0, 2, item_ul)
 
-    @property
-    def integration_time_ms(self):
-        return self.spectrometer.integration_time_micros * 1e-3
-
-    @integration_time_ms.setter
-    def integration_time_ms(self, value_ms):
-        # set the integration time in the hardware
-        self.spectrometer.integration_time_micros = value_ms * 1e3
-
-    @property
-    def scans_to_avg(self):
-        return self.spectrometer.scans_to_avg
-
-    @scans_to_avg.setter
-    def scans_to_avg(self, N):
-        # set the number of scans to average
-        self.spectrometer.scans_to_avg = N
-
     def update_table_from_hardware_int_time(self):
         # update the gui based off the hardware
-        self.tableWidget.item(0, 0).setText(str(self.integration_time_ms))
+        self.tableWidget.item(0, 0).setText(str(self.spectrometer.integration_time_micros * 1e-3))
 
     def update_hardware_from_table_int_time(self):
-        self.integration_time_ms = float(self.tableWidget.item(0, 0).text())
+        self.spectrometer.integration_time_micros = float(self.tableWidget.item(0, 0).text()) * 1e3
 
     def update_hardware_from_table_scans_to_avg(self):
-        self.scans_to_avg = int(self.tableWidget.item(1, 0).text())
+        self.spectrometer.scans_to_avg = int(self.tableWidget.item(1, 0).text())
 
     def save_table_item(self, row, col):
         self.saved_table_item_text = self.tableWidget.item(row, col).text()
@@ -164,20 +145,16 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
                 self.tableWidget.item(row, col).setText(self.saved_table_item_text)
                 return
 
-            int_time_ms = float(self.tableWidget.item(row, col).text())
-            ll_us, ul_us = self.spectrometer.integration_time_micros_limit
-            ll_ms, ul_ms = ll_us * 1e-3, ul_us * 1e-3
-            if ll_ms <= int_time_ms <= ul_ms:
+            try:
+                int_time_ms = float(self.tableWidget.item(row, col).text())
+                self.spectrometer.integration_time_micros = int_time_ms * 1e3 
                 self.update_hardware_from_table_int_time()
-            else:
-                raise_error(
-                    self.error_window,
-                    "integration time does not fall within allowed limits",
-                )
+            except SpectrometerIntegrationException as e:
+                raise_error(self.error_window, e.message)
                 self.tableWidget.item(row, col).setText(self.saved_table_item_text)
 
         if (row, col) == (0, 1) or (row, col) == (0, 2):
-            raise_error(self.error_window, "cannot edit this hardware setting")
+            raise_error(self.error_window, "Cannot edit this hardware setting")
             self.tableWidget.item(row, col).setText(self.saved_table_item_text)
 
         if (row, col) == (0, 3):
@@ -187,29 +164,27 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         if (row, col) == (1, 0):
             if self.frog_land.spectrogram_now_running:
                 raise_error(self.error_window, "stop spectrogram collection first")
-
                 self.tableWidget.item(row, col).setText(self.saved_table_item_text)
                 return
 
             if self.frog_land.cont_update_runnable_exists.is_set():
                 raise_error(self.error_window, "stop spectrum update first")
-
                 self.tableWidget.item(row, col).setText(self.saved_table_item_text)
                 return
 
             scns_to_avg = float(self.tableWidget.item(row, col).text())
-            if scns_to_avg <= 0:
-                raise_error(
-                    self.error_window, "scans to average must be greater than 0"
-                )
 
+            if scns_to_avg % 1 != 0: 
+                scns_to_avg = int(scns_to_avg)
+                self.tableWidget.item(row, col).setText(str(scns_to_avg))
+
+            try:
+                self.update_hardware_from_table_scans_to_avg()
+
+            except SpectrometerAverageException as e:
+                raise_error(self.error_window, e.message)
                 self.tableWidget.item(row, col).setText(self.saved_table_item_text)
-                return
 
-            if int(scns_to_avg) - scns_to_avg != 0:
-                self.tableWidget.item(row, col).setText(str(int(scns_to_avg)))
-
-            self.update_hardware_from_table_scans_to_avg()
 
     def format_data_to_save(self):
         if self.frog_land.spectrogram_array is None:
@@ -242,25 +217,6 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
         final = self.format_data_to_save()
         np.savetxt(filename, final)
-
-        # I've decided to only support .txt format ----------------------------
-        # if filename[-4:] == ".txt" or filename[-4:] == ".TXT":
-        #     data = self.frog_land.spectrogram_array
-        #     to_vstack = self.frog_land.wl_axis
-        #     to_hstack = self.frog_land.Taxis_fs
-        #     _ = np.hstack((to_hstack[:, np.newaxis], data))
-        #     top_row = np.hstack((np.array([np.nan]), to_vstack))
-        #     final = np.vstack((top_row, _))
-        #     np.savetxt(filename, final)
-
-        # elif filename[-4:] != ".csv" and filename[-4:] != ".CSV":
-        #     filename += ".csv"
-
-        #     data = self.frog_land.spectrogram_array
-        #     columns = self.frog_land.wl_axis
-        #     index = self.frog_land.Taxis_fs
-        #     frame = pd.DataFrame(data=data, index=index, columns=columns)
-        #     frame.to_csv(filename)
 
     def plot_intensity_autocorrelation(self):
         if self.frog_land.spectrogram_array is None:
@@ -584,20 +540,20 @@ class FrogLand:
         if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
 
-    @property
-    def curr_mot_pos_um(self):
-        if self._curr_mot_pos_um is None:
-            return self.motor.pos_um
-        else:
-            return self._curr_mot_pos_um
+    # @property
+    # def curr_mot_pos_um(self):
+    #     if self._curr_mot_pos_um is None:
+    #         return self.motor.pos_um
+    #     else:
+    #         return self._curr_mot_pos_um
 
-    @curr_mot_pos_um.setter
-    def curr_mot_pos_um(self, value_um):
-        self._curr_mot_pos_um = value_um
+    # @curr_mot_pos_um.setter
+    # def curr_mot_pos_um(self, value_um):
+    #     self._curr_mot_pos_um = value_um
 
-    @property
-    def T0_um(self):
-        return self.motor.T0_um
+    # @property
+    # def T0_um(self):
+    #     return self.motor.T0_um
 
     @property
     def step_size_um(self):
@@ -617,17 +573,17 @@ class FrogLand:
     def step_size_fs_spectrogram(self):
         return self._step_size_fs_spectrogram
 
-    @property
-    def move_to_pos_fs(self):
-        return self._move_to_pos_fs
+    # @property
+    # def move_to_pos_fs(self):
+    #     return self._move_to_pos_fs
 
-    @property
-    def move_to_pos_um(self):
-        return T_fs_to_dist_um(self.move_to_pos_fs) + self.T0_um
+    # @property
+    # def move_to_pos_um(self):
+    #     return T_fs_to_dist_um(self.move_to_pos_fs) + self.T0_um
 
-    @T0_um.setter
-    def T0_um(self, value_um):
-        self.motor.T0_um = value_um
+    # @T0_um.setter
+    # def T0_um(self, value_um):
+    #     self.motor.T0_um = value_um
 
     @move_to_pos_fs.setter
     def move_to_pos_fs(self, value_fs):
@@ -814,9 +770,9 @@ class FrogLand:
             self.stop_continuous_update()
             return
 
-        X = self.spectrometer.spectrum()
-        self.plot_update(X)
-        lims = np.array([0, max(self.intensities)])
+        spectrum = self.spectrometer.spectrum()
+        self.plot_update(spectrum)
+        lims = np.array([0, max(spectrum[1])])
         self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths(), lims)
 
         self.btn_start.setText("Stop \n Continuous Update")
@@ -861,16 +817,15 @@ class FrogLand:
 
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists.is_set():
-            self.stop_motor()
+            self.motor.stop_motor(blocking=True)
             return
 
         # set a limit on the step size to be ... fs
         if self.step_size_fs > self.step_size_max:
             raise_error(self.error_window, "step size cannot exceed 50 fs")
             return
-
-        exceed = self.motor.value_exceeds_limits(step_size_um)
-        if not exceed:
+        #TODO I don't understand this one yet
+        try:
             self.motor.move_by_um(step_size_um)
 
             self.create_runnable("motor")
@@ -887,7 +842,7 @@ class FrogLand:
 
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists.is_set():
-            self.stop_motor()
+            self.motor.stop_motor(blocking=True)
             return
 
         # set a limit on the step size to be ... fs
@@ -1209,7 +1164,6 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self.started = self.signal.started
         self.progress = self.signal.progress
         self.finished = self.signal.finished
-        self._stop_initiated = False
 
         self.event_to_clear = event_to_clear
 
@@ -1221,14 +1175,12 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
     """
 
     def stop(self):
-        self._stop_initiated = True
-
+        self.motor.stop(blocking=True)
     def run(self):
-        while self.motor.is_in_motion:
-            if self._stop_initiated:
-                self.motor.stop_motor()
 
-            pos = self.motor.pos_um
+        #TODO may be broken. May need to read location from hardware
+        while self.motor.is_in_motion():
+            pos = self.motor.read_hw_pos_um()
             self.progress.emit(pos)
             # time.sleep(.001)
 
@@ -1236,7 +1188,7 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         # clear the event
         self.event_to_clear.clear()
 
-        pos = self.motor.pos_um
+        pos = self.motor.read_hw_pos_um()
         self.progress.emit(pos)
         self.finished.emit(None)
 
