@@ -1,4 +1,4 @@
-from device_interfaces import Spectrometer
+from device_interfaces import Spectrometer, SpectrometerIntegrationException
 from seabreeze.spectrometers import Spectrometer as ooSpec
 import numpy as np
 class OceanOpticsSpectrometer(Spectrometer):
@@ -20,12 +20,15 @@ class OceanOpticsSpectrometer(Spectrometer):
 
     @property
     def integration_time_micros(self):
+        if self._integration_time_micros is None:
+            raise SpectrometerIntegrationException('''Spectrometer integration time 
+                                                   not initialized''')
         return self._integration_time_micros
 
     @integration_time_micros.setter
     def integration_time_micros(self, value):
         self._integration_time_micros = value
-        self.spectrometer.integration_time_micros = value
+        self.spectrometer.integration_time_micros(value)
 
     @property
     def scans_to_avg(self):

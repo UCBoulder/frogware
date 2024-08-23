@@ -12,7 +12,7 @@ class LinearMotor(ABC):
     @property
     def travel_limits_um(self) -> tuple[float]:
         if self._travel_limits is None:
-            raise LimitsNotSetException("Make sure the motor software limits are set")
+            raise StageLimitsNotSetException("Motor software limits not initialized")
         return self._travel_limits
     
     @travel_limits_um.setter
@@ -181,7 +181,7 @@ class Spectrometer(ABC):
 class StageOutOfBoundsException(Exception):
     pass
 
-class LimitsNotSetException(Exception):
+class StageLimitsNotSetException(Exception):
     pass
 
 class SpectrometerIntegrationException(Exception):
