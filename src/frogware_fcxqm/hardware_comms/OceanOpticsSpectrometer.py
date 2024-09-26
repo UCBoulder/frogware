@@ -46,7 +46,8 @@ class OceanOpticsSpectrometer(Spectrometer):
             raise SpectrometerAverageException("Spectrometer must average at least 1 scan")
         else:
             self._scans_to_avg = N
-            self.spectrometer.f.spectrum_processing.set_scans_to_average(N)
+            #TODO doesn't work 
+            # self.spectrometer.f.spectrum_processing.set_scans_to_average(N)
 
     @property
     def integration_time_micros_limit(self):

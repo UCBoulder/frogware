@@ -88,7 +88,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
     the LinearMotor/Spectrometer interface
     '''
     def connect_motor_spectrometer(self):
-        self.motor = ThorlabsKinesisMotor(list_kinesis_devices[0][0])
+        self.motor = ThorlabsKinesisMotor(list_kinesis_devices()[0][0])
         self.motor.travel_limits_um = (0, 25e6)
         self.spectrometer = OceanOpticsSpectrometer(ooSpec.from_first_available())
 
@@ -573,17 +573,20 @@ class FrogLand:
     def step_size_fs_spectrogram(self):
         return self._step_size_fs_spectrogram
 
-    # @property
-    # def move_to_pos_fs(self):
-    #     return self._move_to_pos_fs
+    @property
+    def move_to_pos_fs(self):
+        return self._move_to_pos_fs
 
-    # @property
-    # def move_to_pos_um(self):
-    #     return T_fs_to_dist_um(self.move_to_pos_fs) + self.T0_um
+    @property
+    def move_to_pos_um(self):
+        return T_fs_to_dist_um(self.move_to_pos_fs) + self.T0_um
 
-    # @T0_um.setter
-    # def T0_um(self, value_um):
-    #     self.motor.T0_um = value_um
+    @property
+    def T0_um(self):
+        return self.motor.T0_um
+    @T0_um.setter
+    def T0_um(self, value_um):
+        self.motor.T0_um = value_um
 
     @move_to_pos_fs.setter
     def move_to_pos_fs(self, value_fs):
@@ -817,7 +820,7 @@ class FrogLand:
 
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists.is_set():
-            self.motor.stop_motor(blocking=True)
+            self.motor.stop(blocking=True)
             return
 
         # set a limit on the step size to be ... fs
@@ -827,7 +830,6 @@ class FrogLand:
         #TODO I don't understand this one yet
         try:
             self.motor.move_by_um(step_size_um)
-
             self.create_runnable("motor")
             self.connect_runnable("motor")
             pool.start(self.runnable_update_motor)
@@ -835,55 +837,30 @@ class FrogLand:
             return
 
     def step_left(self, *args, step_size_um=None, ignore_spectrogram=False):
-        # if step_size_um is not specified, then step according
-        # to the step size in the first tab
         if step_size_um is None:
             step_size_um = self.step_size_um
+        self.step_right(step_size_um=-step_size_um, ignore_spectrogram=ignore_spectrogram)
 
-        # if motor is currently moving, just stop the motor.
-        if self.motor_runnable_exists.is_set():
-            self.motor.stop_motor(blocking=True)
-            return
-
-        # set a limit on the step size to be ... fs
-        if self.step_size_fs > self.step_size_max:
-            raise_error(self.error_window, "step size cannot exceed 50 fs")
-            return
-
-        exceed = self.motor.value_exceeds_limits(-step_size_um)
-        if not exceed:
-            self.motor.move_by_um(-step_size_um)
-
-            self.create_runnable("motor")
-            self.connect_runnable("motor")
-            pool.start(self.runnable_update_motor)
-        else:
-            return
-
-    def move_to_pos(self, target_um=False):
+    def move_to_pos(self, target_um=None):
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists.is_set():
             self.stop_motor()
             return
-
-        if not target_um:
+        
+        if target_um is None:
             target_um = self.move_to_pos_um
 
-        # only retrieve the position once!
-        motor_pos_um = self.curr_mot_pos_um
-        exceed = self.motor.value_exceeds_limits(target_um - motor_pos_um)
-        if not exceed:
-            self.btn_move_to_pos.setText("stop motion")
+        try:
+            self.motor.move_to_um(target_um)
 
-            self.motor.pos_um = target_um
-
-            # create a runnable instance and connect the relevant signals and
-            # slots
+        # create a runnable instance and connect the relevant signals and
+        # slots
             self.create_runnable("motor")
             self.connect_runnable("motor")
-            pool.start(self.runnable_update_motor)
-        else:
+            pool.start(self.runnable_update_motor) 
+        except StageOutOfBoundsException:
             return
+
 
     def update_current_pos(self, pos_um):
         self.curr_mot_pos_um = pos_um
@@ -1164,6 +1141,7 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
         self.started = self.signal.started
         self.progress = self.signal.progress
         self.finished = self.signal.finished
+        self._stop_initiated = False
 
         self.event_to_clear = event_to_clear
 
@@ -1175,11 +1153,12 @@ class UpdateMotorPositionRunnable(qtc.QRunnable):
     """
 
     def stop(self):
-        self.motor.stop(blocking=True)
+        self._stop_initiated
+
     def run(self):
 
         #TODO may be broken. May need to read location from hardware
-        while self.motor.is_in_motion():
+        while self.motor.is_in_motion:
             pos = self.motor.read_hw_pos_um()
             self.progress.emit(pos)
             # time.sleep(.001)

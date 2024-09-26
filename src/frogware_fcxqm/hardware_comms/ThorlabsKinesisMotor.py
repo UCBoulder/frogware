@@ -20,11 +20,17 @@ class ThorlabsKinesisMotor(LinearMotor):
     @property
     def pos_um(self):
         # default units are (m)
-        if self._pos_um is None:
+        try:
+            pos = self._pos_um
+        except:
             self._pos_um = self.read_hw_pos_um()
             return self._pos_um
         else:
-            return self._pos_um
+            return pos
+
+    @property
+    def is_in_motion(self) -> bool:
+        return self.motor.is_moving()
 
     def read_hw_pos_um(self):
         return 1e6 * self.motor.get_position()
@@ -37,7 +43,7 @@ class ThorlabsKinesisMotor(LinearMotor):
             # default units are (m) 
             loc_m = loc_um * 1e-6 
             self.motor.move_to(loc_m, scale=True)
-            self.pos_um = loc_um
+            self._pos_um = loc_um
     
     def move_by_um(self, dist_um):
         dist_m = dist_um * 1e-6
@@ -48,11 +54,12 @@ class ThorlabsKinesisMotor(LinearMotor):
         else:
             self.motor.move_by(distance=dist_m)
             # TODO Stored position may differ slightly from stage position
-            self.pos_um = self.motor.get_position(scale=True)
+            self._pos_um = self.motor.get_position(scale=True)
 
     def stop(self, blocking=True) -> None:
         self.motor.stop(sync=blocking)
 
-    def is_in_motion(self) -> bool:
-        return self.motor.is_moving()
+
+    def home(self, blocking: bool) -> None:
+        self.motor.home(sync=blocking)
     

@@ -25,8 +25,10 @@ class LinearMotor(ABC):
     '''
     @property
     def T0_um(self) -> float:
-        if self._T0_um is None:
-            try: 
+        try: 
+            self._T0_um = self._T0_um
+        except:
+            try:
                 self._read_T0_from_file()
             except FileNotFoundError:
                 self._T0_um = self.pos_um
@@ -42,16 +44,13 @@ class LinearMotor(ABC):
     '''
     @property
     def pos_um(self) -> float:
-        if self._pos_um is None:
+        try:
+            self._pos_um = self._pos_um
+        except:
             self._pos_um = self.read_hw_pos_um()
         else:
-            return
+            return self.pos_um
         
-    @pos_um.setter
-    @abstractmethod
-    def pos_um(self, value_um: float) -> None:
-        self._pos_um = value_um
-    
     '''
     Get the location of the stage
     according to the hardware (in microns)
@@ -111,6 +110,7 @@ class LinearMotor(ABC):
     '''
     Checks if the stage is in motion
     '''
+    @property
     @abstractmethod
     def is_in_motion(self) -> bool:
         pass 
@@ -134,7 +134,7 @@ class LinearMotor(ABC):
     '''
     def _write_T0_to_file(self) -> None:
         with open("T0_um.txt", "w") as file:
-            file.write(self._T0_um)
+            file.write(f'{self._T0_um}')
 
 '''
 Abstract class for spectrometers
