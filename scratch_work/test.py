@@ -1,5 +1,6 @@
 from pylablib.devices.Thorlabs import kinesis
 from seabreeze.spectrometers import Spectrometer as ooSpec
+import seabreeze as sb
 
 # devices = kinesis.list_kinesis_devices()
 # print(devices)

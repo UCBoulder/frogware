@@ -831,7 +831,7 @@ class FrogLand:
             self.create_runnable("motor")
             self.connect_runnable("motor")
             pool.start(self.runnable_update_motor)
-        else:
+        except:
             return
 
     def step_left(self, *args, step_size_um=None, ignore_spectrogram=False):

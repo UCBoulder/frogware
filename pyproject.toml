@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools", "unidep[toml]"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "frogware_fcxqm"
+version = "0.0.1"
+authors = [
+  { name="Mike Wahl", email="mike.wahl@colorado.edu" },
+]
+description = "GUI for interfacing with generic home-build FROG components"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Private :: Do Not Upload"
+]
+
+[project.gui-scripts]
+frogware = "frogware_fcxqm:scripts.frogware"
+
+[tool.unidep]
+channels = ["conda-forge"]
+
+dependencies = [
+  "matplotlib",
+  "numpy",
+  "pyqt",
+  "pyqtgraph",
+  "pyserial",
+  "pyusb",
+  "pyvisa",
+  "scipy",
+  "seabreeze"
+  ]

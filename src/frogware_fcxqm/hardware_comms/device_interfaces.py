@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from utilities import T_fs_to_dist_um, dist_um_to_T_fs
+from .utilities import T_fs_to_dist_um, dist_um_to_T_fs
 import numpy as np
 '''
 Abstract class for linear motors
