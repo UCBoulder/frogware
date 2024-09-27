@@ -1,6 +1,9 @@
+import seabreeze.cseabreeze
 from .device_interfaces import Spectrometer, SpectrometerIntegrationException, SpectrometerAverageException
 from seabreeze.spectrometers import Spectrometer as ooSpec
 import numpy as np
+import seabreeze
+seabreeze.use('pyseabreeze')
 class OceanOpticsSpectrometer(Spectrometer):
     def __init__(self, spectrometer: ooSpec):
         self.spectrometer = spectrometer
@@ -10,13 +13,13 @@ class OceanOpticsSpectrometer(Spectrometer):
         self.scans_to_avg = 1
 
     def intensities(self): 
-        return self.spectrometer.intensities(correct_nonlinearity=True)
+        return self.spectrometer.intensities()
 
     def wavelengths(self):
         return self.spectrometer.wavelengths()
     
     def spectrum(self):
-        return self.spectrometer.spectrum(correct_nonlinearity=True)
+        return self.spectrometer.spectrum()
 
     @property
     def integration_time_micros(self):
@@ -52,3 +55,15 @@ class OceanOpticsSpectrometer(Spectrometer):
     @property
     def integration_time_micros_limit(self):
         return self.spectrometer.integration_time_micros_limits
+
+        
+# if __name__ == "__main__":
+#     import seabreeze
+#     seabreeze.use('pyseabreeze')
+#     raw_spec=ooSpec.from_first_available()
+#     spec = OceanOpticsSpectrometer(raw_spec)
+#     print(spec.wavelengths())
+#     print(spec.integration_time_micros_limit)
+#     print(raw_spec.pixels)
+#     print(raw_spec.intensities())
+    

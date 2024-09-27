@@ -23,7 +23,7 @@ from hardware_comms.OceanOpticsSpectrometer import OceanOpticsSpectrometer
 from hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, StageLimitsNotSetException, SpectrometerIntegrationException
 from hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
 from seabreeze.spectrometers import Spectrometer as ooSpec
-
+from time import sleep
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
@@ -1203,10 +1203,14 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
     def run(self):
         # while stop is false, continuously get the spectrum
         while not self._stop:
+            sleep(self.spectrometer.integration_time_micros * 1e-6)
+            sleep(1)
             # get the spectrum
-            wavelengths, intensities = self.spectrometer.spectrum()
+            #wavelengths, intensities = self.spectrometer.spectrum()
+            spectrum = self.spectrometer.spectrum()
             # emit the spectrum as a signal
-            self.progress.emit([wavelengths, intensities])
+            #self.progress.emit([wavelengths, intensities])
+            self.progress.emit(spectrum)
 
         # stop flag has been set to True, and the loop has terminated
         # clear the event
