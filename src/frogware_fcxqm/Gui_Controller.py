@@ -812,10 +812,10 @@ class FrogLand:
     def zero_ambient(self):
         self.ambient_intensity[:] = 0.0
 
-    def step_right(self, *args, step_size_um=None, ignore_spectrogram=False):
+    def step_right(self, *args, step_size_um=False, ignore_spectrogram=False):
         # if step_size_um is not specified, then step according
         # to the step size in the first tab
-        if step_size_um is None:
+        if step_size_um == False:
             step_size_um = self.step_size_um
 
         # if motor is currently moving, just stop the motor.
@@ -833,21 +833,23 @@ class FrogLand:
             self.create_runnable("motor")
             self.connect_runnable("motor")
             pool.start(self.runnable_update_motor)
-        except:
+        except StageOutOfBoundsException as e:
+            raise_error(self.error_window, e.message)
             return
 
-    def step_left(self, *args, step_size_um=None, ignore_spectrogram=False):
-        if step_size_um is None:
-            step_size_um = self.step_size_um
-        self.step_right(step_size_um=-step_size_um, ignore_spectrogram=ignore_spectrogram)
+    def step_left(self, *args, step_size_um=False, ignore_spectrogram=False):
+        if step_size_um == False:
+            step_size_um = -self.step_size_um
+        self.step_right(step_size_um=step_size_um, ignore_spectrogram=ignore_spectrogram)
 
-    def move_to_pos(self, target_um=None):
+    def move_to_pos(self, target_um=False):
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists.is_set():
             self.stop_motor()
             return
         
-        if target_um is None:
+        # Weird idiosyncracy of pyqt
+        if target_um != False:
             target_um = self.move_to_pos_um
 
         try:
@@ -858,7 +860,8 @@ class FrogLand:
             self.create_runnable("motor")
             self.connect_runnable("motor")
             pool.start(self.runnable_update_motor) 
-        except StageOutOfBoundsException:
+        except StageOutOfBoundsException as e:
+            raise_error(self.error_window, e.message)
             return
 
 
@@ -1203,8 +1206,6 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
     def run(self):
         # while stop is false, continuously get the spectrum
         while not self._stop:
-            sleep(self.spectrometer.integration_time_micros * 1e-6)
-            sleep(1)
             # get the spectrum
             #wavelengths, intensities = self.spectrometer.spectrum()
             spectrum = self.spectrometer.spectrum()

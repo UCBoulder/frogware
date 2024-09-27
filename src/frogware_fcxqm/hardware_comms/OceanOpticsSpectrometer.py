@@ -1,9 +1,8 @@
-import seabreeze.cseabreeze
 from .device_interfaces import Spectrometer, SpectrometerIntegrationException, SpectrometerAverageException
 from seabreeze.spectrometers import Spectrometer as ooSpec
 import numpy as np
 import seabreeze
-seabreeze.use('pyseabreeze')
+seabreeze.use('cseabreeze')
 class OceanOpticsSpectrometer(Spectrometer):
     def __init__(self, spectrometer: ooSpec):
         self.spectrometer = spectrometer
