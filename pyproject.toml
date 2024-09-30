@@ -33,5 +33,6 @@ dependencies = [
   "pyusb",
   "pyvisa",
   "scipy",
-  "seabreeze"
+  "seabreeze",
+  {conda = "pylablib"}
   ]
