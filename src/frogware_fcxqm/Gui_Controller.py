@@ -849,7 +849,7 @@ class FrogLand:
             return
         
         # Weird idiosyncracy of pyqt
-        if target_um != False:
+        if target_um == False:
             target_um = self.move_to_pos_um
 
         try:
