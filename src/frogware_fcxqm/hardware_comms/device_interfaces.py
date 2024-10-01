@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from .utilities import T_fs_to_dist_um, dist_um_to_T_fs
 import numpy as np
+from platformdirs import user_data_path
+from pathlib import Path
 '''
 Abstract class for linear motors
 '''
@@ -42,7 +44,11 @@ class LinearMotor(ABC):
     @T0_um.setter
     def T0_um(self, dist_um: float):
         self._T0_um = dist_um
+        self._write_T0_to_file()
 
+    @property
+    def datapath(self) -> Path:
+        return user_data_path(appname='frogware', appauthor='FCxQM') 
     '''
     Get stage position in microns
     '''
@@ -112,7 +118,7 @@ class LinearMotor(ABC):
     '''
 
     def _read_T0_from_file(self) -> None:
-        with open("T0_um.txt", "r") as file:
+        with open(self.datapath / "T0.txt", "r") as file:
             self._T0_um = float(file.readline())
 
     '''
@@ -120,7 +126,7 @@ class LinearMotor(ABC):
     '''
 
     def _write_T0_to_file(self) -> None:
-        with open("T0_um.txt", "w") as file:
+        with open(self.datapath / "T0_um.txt", "w") as file:
             file.write(f'{self._T0_um}')
 
 
@@ -133,17 +139,17 @@ class Spectrometer(ABC):
 
     '''Returns the intensities (in arbitrary units)'''
     @abstractmethod
-    def intensities(self) -> np.ndarray[np.float_]:
+    def intensities(self) -> np.ndarray[np.float64]:
         pass
 
     '''Returns the wavelength bins (in nanometeres) '''
     @abstractmethod
-    def wavelengths(self) -> np.ndarray[np.float_]:
+    def wavelengths(self) -> np.ndarray[np.float64]:
         pass
 
     '''Returns a 2-D list of the wavelengths (0) and intensities (1)'''
     @abstractmethod
-    def spectrum(self) -> np.ndarray[np.float_]:
+    def spectrum(self) -> np.ndarray[np.float64]:
         pass
 
     '''Reads the integration time in microseconds'''

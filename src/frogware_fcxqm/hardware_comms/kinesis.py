@@ -1,4 +1,4 @@
-from hardware_comms.device_interfaces import LinearMotor, StageOutOfBoundsException
+from .device_interfaces import LinearMotor, StageOutOfBoundsException
 from pylablib.devices.Thorlabs import KinesisMotor
 from .utilities import T_fs_to_dist_um, dist_um_to_T_fs
 

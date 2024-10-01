@@ -34,5 +34,6 @@ dependencies = [
   "pyvisa",
   "scipy",
   "seabreeze",
-  "pylablib"
+  {pip = "pylablib"},
+  {pip = "platformdirs"}
   ]

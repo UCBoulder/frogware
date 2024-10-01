@@ -1,19 +1,20 @@
+import sys
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
-from window import Ui_MainWindow
-import plottablefunctions as plotf
+from .window import Ui_MainWindow
+from . import plottablefunctions as plotf
 import numpy as np
-from error import Ui_Form
+from .error import Ui_Form
 import PyQt5.QtGui as qtg
 import gc
 import threading
 import scipy.integrate as scint
 import matplotlib.pyplot as plt
 from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices
-from hardware_comms.kinesis import ThorlabsKinesisMotor
-from hardware_comms.ocean import OceanOpticsSpectrometer
-from hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, SpectrometerIntegrationException
-from hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
+from .hardware_comms.kinesis import ThorlabsKinesisMotor
+from .hardware_comms.ocean import OceanOpticsSpectrometer
+from .hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, SpectrometerIntegrationException
+from .hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
 from seabreeze.spectrometers import Spectrometer as ooSpec
 
 # will be used later on for any continuous update of the display that lasts more
@@ -343,7 +344,7 @@ class FrogLand:
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
 
-        self.set_T0(T0_um=self.read_T0_from_file())
+        self.set_T0(T0_um=self.motor.T0_um)
 
         # do runnables already exist
         self.cont_update_runnable_exists = threading.Event()
@@ -935,7 +936,7 @@ class FrogLand:
             self.T0_um = motor_pos_um
 
             # write the new T0 to file
-            self.write_T0_to_file(self.T0_um)
+            self.motor.T0_um = self.T0_um
 
         else:
             # set T0 position to current motor position
@@ -951,13 +952,6 @@ class FrogLand:
         self.update_current_pos(motor_pos_um)
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
-
-    def read_T0_from_file(self):
-        return np.loadtxt("T0_um.txt")
-
-    def write_T0_to_file(self, T0_um):
-        with open("T0_um.txt", "w") as file:
-            file.write(str(T0_um))
 
     def home_stage(self):
         # if motor is currently moving, just stop the motor.
@@ -1248,6 +1242,7 @@ class UpdateSpectrumRunnable(qtc.QRunnable):
 
 
 if __name__ == "__main__":
-    app = qt.QApplication([])
+    app = qt.QApplication(sys.argv)
     gui = MainWindow()
-    app.exec()
+    gui.show()
+    sys.exit(app.exec())
