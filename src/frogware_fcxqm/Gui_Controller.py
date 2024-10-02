@@ -1,21 +1,24 @@
+import sys
 import PyQt5.QtWidgets as qt
 import PyQt5.QtCore as qtc
-import pandas as pd
-from Window import Ui_MainWindow
-import PlotAndTableFunctions as plotf
-import numpy as np
-import utilities as util
-import time
-from Error import Ui_Form
 import PyQt5.QtGui as qtg
-import hardware_comms.Emulators as em
-from scipy.constants import c as c_mks
 import gc
-import sys
 import threading
+import scipy.integrate as scint
+import matplotlib.pyplot as plt
+import numpy as np
 
-sys.path.append("Stellarnet_Python_Drivers/")
-sys.path.append("hardware_comms/")
+from .runnables import UpdateMotorPositionRunnable, UpdateSpectrumRunnable, Signal
+from .window import Ui_MainWindow
+from . import plottablefunctions as plotf
+from .error import Ui_Form
+from .hardware_comms.kinesis import ThorlabsKinesisMotor
+from .hardware_comms.ocean import OceanOpticsSpectrometer
+from .hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, SpectrometerIntegrationException
+from .hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
+
+from seabreeze.spectrometers import Spectrometer as ooSpec
+from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
@@ -23,41 +26,7 @@ pool = qtc.QThreadPool.globalInstance()
 
 # global variables
 tol_um = 0.1  # 100 nm
-edge_limit_buffer_mm = 1e-3  # 1 um
-emulating_spectrometer = True
-emulating_motor = True
-port = "COM11"
-
-# import if not emulating
-if not emulating_spectrometer:
-    from hardware_comms import stellarnet_peter as snp
-
-if not emulating_motor:
-    from hardware_comms import MotorClassFromAptProtocolConnor as apt
-
-
-def dist_um_to_T_fs(value_um):
-    """
-    :param value_um: delta x in micron
-    :return value_fs: delta t in femtosecond
-    """
-    return (2 * value_um / c_mks) * 1e9
-
-
-def T_fs_to_dist_um(value_fs):
-    """
-    :param value_fs: delta t in femtosecond
-    :return value_um: delta x in micron
-    """
-    return (c_mks * value_fs / 2) * 1e-9
-
-
-# Signal class to be used for Runnable
-class Signal(qtc.QObject):
-    started = qtc.pyqtSignal(object)
-    progress = qtc.pyqtSignal(object)
-    finished = qtc.pyqtSignal(object)
-
+edge_limit_buffer_mm = 0.0  # 1 um
 
 # Popup error window
 class ErrorWindow(qt.QWidget, Ui_Form):
@@ -88,12 +57,11 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
         self.connect_motor_spectrometer()
 
-        self.frog_land = FrogLand(self,
-                                  self.motor_interface,
-                                  self.spectrometer)
+        self.frog_land = FrogLand(self, self.motor, self.spectrometer)
 
         self.set_hardware_params()
         self.update_hardware_from_table_int_time()
+        self.update_hardware_from_table_scans_to_avg()
 
         self.connect_signals()
 
@@ -102,28 +70,33 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         print("Frogging has stopped")
         self.frog_land.stop_all_runnables()
 
-    def connect_motor_spectrometer(self):
-        if emulating_motor:
-            self.motor_interface = MotorInterface(util.Motor(em.Motor()))
-        else:
-            motor = apt.KDC101(port)
-            self.motor_interface = MotorInterface(util.Motor(motor))
+    '''
+    Connect specific motor/spectrometer objects. Must implement
+    the LinearMotor/Spectrometer interface
+    '''
 
-        if emulating_spectrometer:
-            self.spectrometer = util.Spectrometer(em.Spectrometer())
-        else:
-            self.spectrometer = util.Spectrometer(snp.Spectrometer())
+    def connect_motor_spectrometer(self):
+        self.motor = ThorlabsKinesisMotor(list_kinesis_devices()[0][0])
+        self.motor.travel_limits_um = (0, 25e6)
+        self.spectrometer = OceanOpticsSpectrometer(
+            ooSpec.from_first_available())
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)
         self.tableWidget.cellClicked.connect(self.save_table_item)
         self.actionSave.triggered.connect(self.save_spectrogram)
 
+        self.btn_plot_autocorrelation.clicked.connect(
+            self.plot_intensity_autocorrelation
+        )
+
     def set_hardware_params(self):
         # set integration time limits (obtained in microsecond from
         # the spectrometer)
-        int_time_lower_limit_us, int_time_upper_limit_us = \
-            self.spectrometer.integration_time_micros_limit
+        (
+            int_time_lower_limit_us,
+            int_time_upper_limit_us,
+        ) = self.spectrometer.integration_time_micros_limit
 
         item_ll = qt.QTableWidgetItem()
         item_ul = qt.QTableWidgetItem()
@@ -134,25 +107,21 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         self.tableWidget.setItem(0, 1, item_ll)
         self.tableWidget.setItem(0, 2, item_ul)
 
-    @property
-    def integration_time_ms(self):
-        return self.spectrometer.integration_time_micros * 1e-3
-
-    @integration_time_ms.setter
-    def integration_time_ms(self, value_ms):
-        # set the integration time in the hardware
-        self.spectrometer.integration_time_micros = value_ms * 1e3
-
     def update_table_from_hardware_int_time(self):
         # update the gui based off the hardware
-        self.tableWidget.item(0, 0).setText(str(self.integration_time_ms))
+        self.tableWidget.item(0, 0).setText(
+            str(self.spectrometer.integration_time_micros * 1e-3))
 
     def update_hardware_from_table_int_time(self):
-        self.integration_time_ms = float(self.tableWidget.item(0, 0).text())
+        self.spectrometer.integration_time_micros = float(
+            self.tableWidget.item(0, 0).text()) * 1e3
+
+    def update_hardware_from_table_scans_to_avg(self):
+        self.spectrometer.scans_to_avg = int(
+            self.tableWidget.item(1, 0).text())
 
     def save_table_item(self, row, col):
-        self.saved_table_item_text = \
-            self.tableWidget.item(row, col).text()
+        self.saved_table_item_text = self.tableWidget.item(row, col).text()
 
     def slot_for_tablewidget(self, row, col):
         if (row, col) == (0, 0):
@@ -161,44 +130,75 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
                             "stop spectrogram collection first")
 
                 self.tableWidget.item(row, col).setText(
-                    self.saved_table_item_text
-                )
+                    self.saved_table_item_text)
                 return
 
             if self.frog_land.cont_update_runnable_exists.is_set():
-                raise_error(self.error_window,
-                            "stop spectrum update first")
+                raise_error(self.error_window, "stop spectrum update first")
 
                 self.tableWidget.item(row, col).setText(
-                    self.saved_table_item_text
-                )
+                    self.saved_table_item_text)
                 return
 
-            int_time_ms = float(self.tableWidget.item(row, col).text())
-            ll_us, ul_us = \
-                self.spectrometer.integration_time_micros_limit
-            ll_ms, ul_ms = ll_us * 1e-3, ul_us * 1e-3
-            if ll_ms <= int_time_ms <= ul_ms:
+            try:
+                int_time_ms = float(self.tableWidget.item(row, col).text())
+                self.spectrometer.integration_time_micros = int_time_ms * 1e3
                 self.update_hardware_from_table_int_time()
-            else:
-                raise_error(
-                    self.error_window,
-                    "integration time does not fall within allowed limits")
+            except SpectrometerIntegrationException as e:
+                raise_error(self.error_window, e.message)
                 self.tableWidget.item(row, col).setText(
-                    self.saved_table_item_text
-                )
+                    self.saved_table_item_text)
 
         if (row, col) == (0, 1) or (row, col) == (0, 2):
-            raise_error(
-                self.error_window,
-                "cannot edit this hardware setting")
+            raise_error(self.error_window, "Cannot edit this hardware setting")
             self.tableWidget.item(row, col).setText(self.saved_table_item_text)
 
         if (row, col) == (0, 3):
-            raise_error(
-                self.error_window,
-                "I'm too lazy to let you change this")
+            raise_error(self.error_window,
+                        "I'm too lazy to let you change this")
             self.tableWidget.item(row, col).setText(self.saved_table_item_text)
+
+        if (row, col) == (1, 0):
+            if self.frog_land.spectrogram_now_running:
+                raise_error(self.error_window,
+                            "stop spectrogram collection first")
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text)
+                return
+
+            if self.frog_land.cont_update_runnable_exists.is_set():
+                raise_error(self.error_window, "stop spectrum update first")
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text)
+                return
+
+            scns_to_avg = float(self.tableWidget.item(row, col).text())
+
+            if scns_to_avg % 1 != 0:
+                scns_to_avg = int(scns_to_avg)
+                self.tableWidget.item(row, col).setText(str(scns_to_avg))
+
+            try:
+                self.update_hardware_from_table_scans_to_avg()
+
+            except SpectrometerAverageException as e:
+                raise_error(self.error_window, e.message)
+                self.tableWidget.item(row, col).setText(
+                    self.saved_table_item_text)
+
+    def format_data_to_save(self):
+        if self.frog_land.spectrogram_array is None:
+            raise_error(self.error_window,
+                        "No spectrogram has been collected yet")
+            return
+
+        data = self.frog_land.spectrogram_array
+        to_vstack = self.frog_land.wl_axis
+        to_hstack = self.frog_land.Taxis_fs
+        _ = np.hstack((to_hstack[:, np.newaxis], data))
+        top_row = np.hstack((np.array([np.nan]), to_vstack))
+        final = np.vstack((top_row, _))
+        return final
 
     def save_spectrogram(self):
         if self.frog_land.spectrogram_array is None:
@@ -207,116 +207,47 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
             return
 
         filename, _ = qt.QFileDialog.getSaveFileName(self, "Save Spectrogram")
-        if filename == '':
+        if filename == "":
             return
 
-        if filename[-4:] == ".txt" or filename[-4:] == ".TXT":
-            data = self.frog_land.spectrogram_array
-            to_vstack = self.frog_land.wl_axis
-            to_hstack = self.frog_land.Taxis_fs
-            _ = np.hstack((to_hstack[:, np.newaxis], data))
-            top_row = np.hstack((np.array([np.nan]), to_vstack))
-            final = np.vstack((top_row, _))
-            np.savetxt(filename, final)
+        filename: str
+        if filename.lower()[-4:] != ".txt":
+            if filename.lower()[-4:] == ".csv":
+                raise_error(self.error_window,
+                            "only .txt format is supported :(")
+                return
+            filename += ".txt"
 
-        elif filename[-4:] != ".csv" and filename[-4:] != ".CSV":
-            filename += ".csv"
+        final = self.format_data_to_save()
+        np.savetxt(filename, final)
 
-            data = self.frog_land.spectrogram_array
-            columns = self.frog_land.wl_axis
-            index = self.frog_land.Taxis_fs
-            frame = pd.DataFrame(data=data, index=index, columns=columns)
-            frame.to_csv(filename)
-
-
-class MotorInterface:
-    """To help with integrating other pieces of hardware, I was thinking to
-    keep classes in utilities.py more bare bone, and focus on hardware
-    communication there. Here I will add more things I would like the Motor
-    class to have. This class expects an instance of util.Motor class from
-    utilities.py """
-
-    def __init__(self, motor):
-        motor: util.Motor
-        self.motor = motor
-
-        self.T0_um = 0  # T0 position of the motor in micron
-
-        # don't let the stage come closer than this to the stage limits.
-        self._safety_buffer_mm = edge_limit_buffer_mm  # 1um
-
-        self.error_window = ErrorWindow()
-
-    @property
-    def pos_um(self):
-        return self.motor.position_mm * 1e3
-
-    @property
-    def pos_fs(self):
-        # pos_fs is taken from pos_um and T0_um
-        return dist_um_to_T_fs(self.pos_um - self.T0_um)
-
-    @pos_um.setter
-    def pos_um(self, value_um):
-        # move the motor to the new position, assuming they give the motor
-        # position in mm
-        self.motor.position_mm = value_um * 1e-3
-
-    @pos_fs.setter
-    def pos_fs(self, value_fs):
-        # pos_fs is taken from pos_um, so just set pos_um
-        # setting pos_um moves the motor
-        self.pos_um = T_fs_to_dist_um(value_fs) + self.T0_um
-
-    def move_by_fs(self, value_fs):
-        # obtain the distance to move in micron and meters
-        value_um = T_fs_to_dist_um(value_fs)
-        value_mm = value_um * 1e-3
-
-        # move the motor to the new position and update the position in micron
-        self.motor.move_by(value_mm)
-
-    def move_by_um(self, value_um):
-        value_mm = value_um * 1e-3
-
-        # move the motor to the new position and update the position in micron
-        self.motor.move_by(value_mm)
-
-    def value_exceeds_limits(self, value_um):
-        predicted_pos_um = value_um + self.pos_um
-        max_limit_um = self.motor.max_pos_mm * 1e3
-        min_limit_um = self.motor.min_pos_mm * 1e3
-        buffer_um = self._safety_buffer_mm * 1e3
-
-        if (predicted_pos_um < min_limit_um + buffer_um) or (
-                predicted_pos_um > max_limit_um - buffer_um):
+    def plot_intensity_autocorrelation(self):
+        if self.frog_land.spectrogram_array is None:
             raise_error(self.error_window,
-                        "too close to stage limits (within 1um)")
-            return True
-        else:
-            return False
+                        "No spectrogram has been collected yet")
+            return
+
+        data = self.format_data_to_save()
+        ret = pr.Retrieval()
+        ret.load_data("hello world", spectrogram=data)
+        s = ret.spectrogram
+        autocorrelation = scint.simpson(s, x=ret.F_THz[::-1], axis=1)
+        fig, ax = plt.subplots(1, 1, num="intensity autocorrelation")
+        ax.plot(ret.T_fs, autocorrelation, ".-")
+        fig.show()
 
 
 class FrogLand:
     """
     This class is the main user interface. It expects an instance of
-    MainWindow, MotorInterface, and util.Spectrometer class in the init
+    MainWindow, LinearMotor, and Spectrometer class in the init
     function.
     """
 
-    def __init__(self, main_window, motor_interface, spectrometer):
-        """
-        :param main_window:
-        :param motor_interface:
-        :param spectrometer:
-        """
-
-        main_window: MainWindow
-        motor_interface: MotorInterface
-        spectrometer: util.Spectrometer
+    def __init__(self, main_window: MainWindow, motor: LinearMotor, spectrometer: Spectrometer):
         self.main_window = main_window
         self.spectrometer = spectrometer
-        self.motor_interface = motor_interface
+        self.motor = motor
 
         # get convenient access to relevant main window attributes
         self.btn_start = self.main_window.btn_start_cnt_update
@@ -340,17 +271,20 @@ class FrogLand:
         self.lcd_current_pos_um_tab2 = self.main_window.lcd_tab2_current_pos_um
         self.lcd_current_pos_fs_tab2 = self.main_window.lcd_tab2_current_pos_fs
         self.btn_setT0 = self.main_window.btn_set_T0
-        self.plot1d_window = plotf.PlotWindow(self.main_window.le_cont_upd_xmin,
-                                              self.main_window.le_cont_upd_xmax,
-                                              self.main_window.le_cont_upd_ymin,
-                                              self.main_window.le_cont_upd_ymax,
-                                              self.main_window.gv_cont_upd_spec)
+        self.plot1d_window = plotf.PlotWindow(
+            self.main_window.le_cont_upd_xmin,
+            self.main_window.le_cont_upd_xmax,
+            self.main_window.le_cont_upd_ymin,
+            self.main_window.le_cont_upd_ymax,
+            self.main_window.gv_cont_upd_spec,
+        )
         self.plot2d_window = plotf.PlotWindow(
             self.main_window.le_spectrogram_xmin,
             self.main_window.le_spectrogram_xmax,
             self.main_window.le_spectrogram_ymin,
             self.main_window.le_spectrogram_ymax,
-            self.main_window.gv_Spectrogram)
+            self.main_window.gv_Spectrogram,
+        )
         self.actionStop = self.main_window.actionStop
         self.btn_set_ambient = self.main_window.btn_set_ambient
         self.btn_zero_ambient = self.main_window.btn_zero_ambient
@@ -399,12 +333,12 @@ class FrogLand:
         # update the display
         self.update_stepsize_from_le_fs()
         self.update_stepsize_spectrogram_from_le_fs()
-        self.update_current_pos(self.motor_interface.pos_um)
+        self.update_current_pos(self.motor.pos_um())
 
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
 
-        self.set_T0(T0_um=self.read_T0_from_file())
+        self.set_T0(T0_um=self.motor.T0_um)
 
         # do runnables already exist
         self.cont_update_runnable_exists = threading.Event()
@@ -422,9 +356,9 @@ class FrogLand:
         self.Taxis_fs = None
         self.spectrogram_now_running = False
 
-        self.ambient_intensity = np.zeros(len(self.spectrometer.wavelengths))
-        self.intensities = np.zeros(len(self.spectrometer.wavelengths))
-        self.bckgnd_subtrd = np.zeros(len(self.spectrometer.wavelengths))
+        self.ambient_intensity = np.zeros(len(self.spectrometer.wavelengths()))
+        self.intensities = np.zeros(len(self.spectrometer.wavelengths()))
+        self.bckgnd_subtrd = np.zeros(len(self.spectrometer.wavelengths()))
 
     # I have create_runnable and connect_runnable defined separately because
     # every time the pool finishes it deletes the instance, so it needs to be
@@ -441,7 +375,8 @@ class FrogLand:
             self.runnable_update_spectrum = UpdateSpectrumRunnable(
                 spectrometer=self.spectrometer,
                 event_to_clear=self.cont_update_runnable_exists,
-                event_to_set=self.cont_update_loop_exited)
+                event_to_set=self.cont_update_loop_exited,
+            )
 
             # I don't know if this is necessary, but in case the old memory
             # is not freed up when re-assigning new content, do some garbage
@@ -455,8 +390,9 @@ class FrogLand:
 
             # create a runnable
             self.runnable_update_motor = UpdateMotorPositionRunnable(
-                motor_interface=self.motor_interface,
-                event_to_clear=self.motor_runnable_exists)
+                motor=self.motor,
+                event_to_clear=self.motor_runnable_exists,
+            )
 
             # I don't know if this is necessary, but in case the old memory
             # is not freed up when re-assigning new content, do some garbage
@@ -474,7 +410,7 @@ class FrogLand:
         retrieval", namely places where getting information of hardware
         is redundant and wastes time.
         """
-        if string == 'spectrum':
+        if string == "spectrum":
             # for each retrieval of the spectrum update the plot in the gui
             self.runnable_update_spectrum.progress.connect(self.plot_update)
 
@@ -505,9 +441,11 @@ class FrogLand:
         self.le_step_size_fs.editingFinished.connect(
             self.update_stepsize_from_le_fs)
         self.le_step_size_um_tab2.editingFinished.connect(
-            self.update_stepsize_spectrogram_from_le_um)
+            self.update_stepsize_spectrogram_from_le_um
+        )
         self.le_step_size_fs_tab2.editingFinished.connect(
-            self.update_stepsize_spectrogram_from_le_fs)
+            self.update_stepsize_spectrogram_from_le_fs
+        )
 
         # update move_to_pos (for both um and fs)
         self.le_pos_um.editingFinished.connect(
@@ -548,14 +486,16 @@ class FrogLand:
 
         # connect the spectrogram collection instance
         self.spectrogram_collection_instance.signal.progress.connect(
-            self.update_spectrogram_plot)
+            self.update_spectrogram_plot
+        )
         self.spectrogram_collection_instance.signal.finished.connect(
-            self.spectrogram_finished)
+            self.spectrogram_finished
+        )
         self.actionStop.triggered.connect(
             self.spectrogram_collection_instance.stop)
 
-    """The fact that the Spectrogram Collection is not run on a separate 
-    thread makes things slightly different. 
+    """The fact that the Spectrogram Collection is not run on a separate
+    thread makes things slightly different.
 
     I found out that if you do not connect the signals in the Spectrogram
     Collection but instead do it in the Frogland class, then their
@@ -565,7 +505,7 @@ class FrogLand:
 
     Lastly, if you leave the connections for these signals in this class,
     then there seems to be a conflict, where the buttons don't work
-    although their slot functions are called when you click on them. 
+    although their slot functions are called when you click on them.
 
     As a result, I disconnect them here whenever running the spectrogram
     and re-connect them later."""
@@ -607,8 +547,7 @@ class FrogLand:
         self.btn_move_to_pos.clicked.connect(self.move_to_pos)
 
         # connect the collect spectrogram button
-        self.btn_collect_spectrogram.clicked.connect(
-            self.collect_spectrogram)
+        self.btn_collect_spectrogram.clicked.connect(self.collect_spectrogram)
 
     def stop_all_runnables(self):
         if self.motor_runnable_exists.is_set():
@@ -616,20 +555,20 @@ class FrogLand:
         if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
 
-    @property
-    def curr_mot_pos_um(self):
-        if self._curr_mot_pos_um is None:
-            return self.motor_interface.pos_um
-        else:
-            return self._curr_mot_pos_um
+    # @property
+    # def curr_mot_pos_um(self):
+    #     if self._curr_mot_pos_um is None:
+    #         return self.motor.pos_um
+    #     else:
+    #         return self._curr_mot_pos_um
 
-    @curr_mot_pos_um.setter
-    def curr_mot_pos_um(self, value_um):
-        self._curr_mot_pos_um = value_um
+    # @curr_mot_pos_um.setter
+    # def curr_mot_pos_um(self, value_um):
+    #     self._curr_mot_pos_um = value_um
 
-    @property
-    def T0_um(self):
-        return self.motor_interface.T0_um
+    # @property
+    # def T0_um(self):
+    #     return self.motor.T0_um
 
     @property
     def step_size_um(self):
@@ -657,9 +596,13 @@ class FrogLand:
     def move_to_pos_um(self):
         return T_fs_to_dist_um(self.move_to_pos_fs) + self.T0_um
 
+    @property
+    def T0_um(self):
+        return self.motor.T0_um
+
     @T0_um.setter
     def T0_um(self, value_um):
-        self.motor_interface.T0_um = value_um
+        self.motor.T0_um = value_um
 
     @move_to_pos_fs.setter
     def move_to_pos_fs(self, value_fs):
@@ -809,36 +752,36 @@ class FrogLand:
         self.move_to_pos_fs = move_to_pos_fs
 
     def update_stepsize_le_um(self):
-        self.le_step_size_um.setText('%.3f' % self.step_size_um)
+        self.le_step_size_um.setText("%.3f" % self.step_size_um)
 
     def update_stepsize_le_fs(self):
-        self.le_step_size_fs.setText('%.3f' % self.step_size_fs)
+        self.le_step_size_fs.setText("%.3f" % self.step_size_fs)
 
     def update_stepsize_spectrogram_le_um(self):
         self.le_step_size_um_tab2.setText(
-            '%.3f' % self.step_size_um_spectrogram)
+            "%.0f" % self.step_size_um_spectrogram)
 
     def update_stepsize_spectrogram_le_fs(self):
         self.le_step_size_fs_tab2.setText(
-            '%.3f' % self.step_size_fs_spectrogram)
+            "%.0f" % self.step_size_fs_spectrogram)
 
     def update_startpos_le_um(self):
-        self.le_startpos_um.setText('%.3f' % self.start_pos_um)
+        self.le_startpos_um.setText("%.0f" % self.start_pos_um)
 
     def update_startpos_le_fs(self):
-        self.le_startpos_fs.setText('%.3f' % self.start_pos_fs)
+        self.le_startpos_fs.setText("%.0f" % self.start_pos_fs)
 
     def update_endpos_le_um(self):
-        self.le_endpos_um.setText('%.3f' % self.end_pos_um)
+        self.le_endpos_um.setText("%.0f" % self.end_pos_um)
 
     def update_endpos_le_fs(self):
-        self.le_endpos_fs.setText('%.3f' % self.end_pos_fs)
+        self.le_endpos_fs.setText("%.0f" % self.end_pos_fs)
 
     def update_move_to_pos_le_um(self):
-        self.le_pos_um.setText('%.5f' % self.move_to_pos_um)
+        self.le_pos_um.setText("%.3f" % self.move_to_pos_um)
 
     def update_move_to_pos_le_fs(self):
-        self.le_pos_fs.setText('%.5f' % self.move_to_pos_fs)
+        self.le_pos_fs.setText("%.3f" % self.move_to_pos_fs)
 
     def start_continuous_update(self):
         # I would like to have the start_continuous_update button
@@ -848,17 +791,17 @@ class FrogLand:
             self.stop_continuous_update()
             return
 
-        X = self.spectrometer.get_spectrum()
-        self.plot_update(X)
-        lims = np.array([0, max(self.intensities)])
-        self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
-                                             lims)
+        spectrum = self.spectrometer.spectrum()
+        self.plot_update(spectrum)
+        lims = np.array([0, max(spectrum[1])])
+        self.plot1d_window.format_to_xy_data(
+            self.spectrometer.wavelengths(), lims)
 
         self.btn_start.setText("Stop \n Continuous Update")
 
         # create a runnable instance and connect the relevant signals and slots
-        self.create_runnable('spectrum')
-        self.connect_runnable('spectrum')
+        self.create_runnable("spectrum")
+        self.connect_runnable("spectrum")
 
         # start the continuous update
         pool.start(self.runnable_update_spectrum)
@@ -879,71 +822,46 @@ class FrogLand:
         self.intensities[:] = intensities[:]
         # set the data to the new spectrum
         self.bckgnd_subtrd = intensities - self.ambient_intensity
-        self.bckgnd_subtrd = np.where(self.bckgnd_subtrd > 0.,
-                                      self.bckgnd_subtrd, 0.)
+        self.bckgnd_subtrd = np.where(
+            self.bckgnd_subtrd > 0.0, self.bckgnd_subtrd, 0.0)
         self.curve.setData(x=wavelengths, y=self.bckgnd_subtrd)
 
     def set_ambient(self):
         self.ambient_intensity[:] = self.intensities[:]
 
     def zero_ambient(self):
-        self.ambient_intensity[:] = 0.
+        self.ambient_intensity[:] = 0.0
 
-    def step_right(self, *args,
-                   step_size_um=None,
-                   ignore_spectrogram=False):
+    def step_right(self, *args, step_size_um=False, ignore_spectrogram=False):
         # if step_size_um is not specified, then step according
         # to the step size in the first tab
-        if step_size_um is None:
+        if step_size_um == False:
             step_size_um = self.step_size_um
 
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists.is_set():
-            self.stop_motor()
+            self.motor.stop(blocking=True)
             return
 
         # set a limit on the step size to be ... fs
         if self.step_size_fs > self.step_size_max:
             raise_error(self.error_window, "step size cannot exceed 50 fs")
             return
-
-        exceed = self.motor_interface.value_exceeds_limits(step_size_um)
-        if not exceed:
-            self.motor_interface.move_by_um(step_size_um)
-
-            self.create_runnable('motor')
-            self.connect_runnable('motor')
+        # TODO I don't understand this one yet
+        try:
+            self.motor.move_by_um(step_size_um)
+            self.create_runnable("motor")
+            self.connect_runnable("motor")
             pool.start(self.runnable_update_motor)
-        else:
+        except StageOutOfBoundsException as e:
+            raise_error(self.error_window, e.message)
             return
 
-    def step_left(self, *args,
-                  step_size_um=None,
-                  ignore_spectrogram=False):
-        # if step_size_um is not specified, then step according
-        # to the step size in the first tab
-        if step_size_um is None:
-            step_size_um = self.step_size_um
-
-        # if motor is currently moving, just stop the motor.
-        if self.motor_runnable_exists.is_set():
-            self.stop_motor()
-            return
-
-        # set a limit on the step size to be ... fs
-        if self.step_size_fs > self.step_size_max:
-            raise_error(self.error_window, "step size cannot exceed 50 fs")
-            return
-
-        exceed = self.motor_interface.value_exceeds_limits(-step_size_um)
-        if not exceed:
-            self.motor_interface.move_by_um(-step_size_um)
-
-            self.create_runnable('motor')
-            self.connect_runnable('motor')
-            pool.start(self.runnable_update_motor)
-        else:
-            return
+    def step_left(self, *args, step_size_um=False, ignore_spectrogram=False):
+        if step_size_um == False:
+            step_size_um = -self.step_size_um
+        self.step_right(step_size_um=step_size_um,
+                        ignore_spectrogram=ignore_spectrogram)
 
     def move_to_pos(self, target_um=False):
         # if motor is currently moving, just stop the motor.
@@ -951,39 +869,36 @@ class FrogLand:
             self.stop_motor()
             return
 
-        if not target_um:
+        # Weird idiosyncracy of pyqt
+        if target_um == False:
             target_um = self.move_to_pos_um
 
-        # only retrieve the position once!
-        motor_pos_um = self.curr_mot_pos_um
-        exceed = self.motor_interface.value_exceeds_limits(
-            target_um - motor_pos_um)
-        if not exceed:
-            self.btn_move_to_pos.setText("stop motion")
+        try:
+            self.motor.move_to_um(target_um)
 
-            self.motor_interface.pos_um = target_um
-
-            # create a runnable instance and connect the relevant signals and
-            # slots
-            self.create_runnable('motor')
-            self.connect_runnable('motor')
+        # create a runnable instance and connect the relevant signals and
+        # slots
+            self.create_runnable("motor")
+            self.connect_runnable("motor")
             pool.start(self.runnable_update_motor)
-        else:
+        except StageOutOfBoundsException as e:
+            raise_error(self.error_window, e.message)
             return
 
     def update_current_pos(self, pos_um):
         self.curr_mot_pos_um = pos_um
-        motor_pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
-        self.lcd_current_pos_um.display('%.3f' % pos_um)
-        self.lcd_current_pos_fs.display('%.3f' % motor_pos_fs)
+        motor_pos_fs = dist_um_to_T_fs(pos_um - self.motor.T0_um)
+        self.lcd_current_pos_um.display("%.3f" % pos_um)
+        self.lcd_current_pos_fs.display("%.3f" % motor_pos_fs)
 
-        self.lcd_current_pos_um_tab2.display(
-            '%.3f' % pos_um)
-        self.lcd_current_pos_fs_tab2.display(
-            '%.3f' % motor_pos_fs)
+        self.lcd_current_pos_um_tab2.display("%.3f" % pos_um)
+        self.lcd_current_pos_fs_tab2.display("%.3f" % motor_pos_fs)
 
-    """The motor takes a while to stop (it slows to a stop). Using a wait() flag may cause the GUI to freeze, 
-    so instead of using a threading Event, I just connect a finished signal to the motor_finished slot """
+    """
+    The motor takes a while to stop (it slows to a stop). Using a wait() flag
+    may cause the GUI to freeze, so instead of using a threading Event, I just
+    connect a finished signal to the motor_finished slot
+    """
 
     # stop_motor should send the stop_signal to the motor hardware
     # it will not set motor_runnable_exists to False, that will only
@@ -1015,7 +930,7 @@ class FrogLand:
             self.T0_um = motor_pos_um
 
             # write the new T0 to file
-            self.write_T0_to_file(self.T0_um)
+            self.motor.T0_um = self.T0_um
 
         else:
             # set T0 position to current motor position
@@ -1032,23 +947,16 @@ class FrogLand:
         self.update_startpos_from_le_fs()
         self.update_endpos_from_le_fs()
 
-    def read_T0_from_file(self):
-        return np.loadtxt("T0_um.txt")
-
-    def write_T0_to_file(self, T0_um):
-        with open("T0_um.txt", "w") as file:
-            file.write(str(T0_um))
-
     def home_stage(self):
         # if motor is currently moving, just stop the motor.
         if self.motor_runnable_exists.is_set():
             self.stop_motor()
             return
 
-        self.motor_interface.motor.home_motor(blocking=False)
+        self.motor.home(blocking=False)
 
-        self.create_runnable('motor')
-        self.connect_runnable('motor')
+        self.create_runnable("motor")
+        self.connect_runnable("motor")
         pool.start(self.runnable_update_motor)
 
         self.btn_home_stage.setText("stop homing")
@@ -1059,7 +967,6 @@ class FrogLand:
         # time.sleep(.1)
 
     def collect_spectrogram(self, *args):
-
         # if motor is in motion, stop the motor
         if self.motor_runnable_exists.is_set():
             self.stop_motor()
@@ -1070,7 +977,6 @@ class FrogLand:
         # spectrum update loop is run on a different thread, you need to
         # let the current loop finish before continuing to grab a spectrum.
         # This is implemented using a threading event
-        # TODO implement this via a threading event instead
         if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
 
@@ -1096,24 +1002,24 @@ class FrogLand:
 
     def _prep_spectrogram(self):
         if np.all(self.intensities == 0):
-            X = self.spectrometer.get_spectrum()
+            X = self.spectrometer.spectrum()
             self.plot_update(X)
             lims = np.array([0, max(self.intensities)])
-            self.plot1d_window.format_to_xy_data(self.spectrometer.wavelengths,
-                                                 lims)
+            self.plot1d_window.format_to_xy_data(
+                self.spectrometer.wavelengths(), lims)
 
         self.btn_collect_spectrogram.setText("Stop \n Collection")
 
         self.Taxis_fs_list = []
         self.spectrogram_array_list = []
 
-        self.plot2d_window.plotwidget.set_cmap('jet')
+        self.plot2d_window.plotwidget.set_cmap("jet")
 
     def _setup_2dplot(self):
-        self.wl_axis = self.spectrometer.wavelengths
-        self.plot2d_window.plotwidget.scale_axes(x=self.Taxis_fs,
-                                                 y=self.wl_axis,
-                                                 format='xy')
+        self.wl_axis = self.spectrometer.wavelengths()
+        self.plot2d_window.plotwidget.scale_axes(
+            x=self.Taxis_fs, y=self.wl_axis, format="xy"
+        )
         self.plot2d_window.format_to_xy_data(self.Taxis_fs, self.wl_axis)
 
     def update_spectrogram_plot(self, X):
@@ -1132,10 +1038,9 @@ class FrogLand:
 
 
 class CollectSpectrogram:
-    def __init__(self, frogland):
-        frogland: FrogLand
+    def __init__(self, frogland: FrogLand):
         self.frogland = frogland
-        self.motor_interface = frogland.motor_interface
+        self.motor = frogland.motor
         self.spectrometer = frogland.spectrometer
 
         self.signal = Signal()
@@ -1189,8 +1094,21 @@ class CollectSpectrogram:
 
     def emit_data(self, pos_um):
         # collect spectrum
-        wavelengths, intensities = self.spectrometer.get_spectrum()
-        pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
+        wavelengths, intensities = self.spectrometer.spectrum()
+
+        """trying to average without detector saturation. Doesn't really help """
+        # __________________________________________________________
+        # N = 10
+        # Intensities = np.zeros((N, len(intensities)))
+        # Intensities[0] = intensities
+        #
+        # for i in range(1, N - 1, 1):
+        #     Intensities[i] = self.spectrometer.get_spectrum()[1]
+        #
+        # intensities = np.mean(Intensities, 0)
+        # __________________________________________________________
+
+        pos_fs = dist_um_to_T_fs(pos_um - self.motor.T0_um)
         self.signal.progress.emit((wavelengths, intensities, self.n, pos_fs))
 
     def step_one(self):
@@ -1207,27 +1125,23 @@ class CollectSpectrogram:
         else:
             pos_um = self.frogland.curr_mot_pos_um
 
-            pos_fs = dist_um_to_T_fs(pos_um - self.motor_interface.T0_um)
-            print("point", self.n + 1, ", ", self.end_pos_fs - pos_fs,
-                  "fs remaining")
+            pos_fs = dist_um_to_T_fs(pos_um - self.motor.T0_um)
+            print("point", self.n + 1, ", ",
+                  self.end_pos_fs - pos_fs, "fs remaining")
 
             self.emit_data(pos_um)
 
             if np.round(pos_um, 3) <= np.round(self.end_pos_um, 3):
-                # TODO might want to move this out of the loop, that way
-                #  you include the last data point.
-                # self.emit_data(pos_um)
-
                 # step the motor
-                self.frogland.step_right(step_size_um=self.step_um,
-                                         ignore_spectrogram=True)
+                self.frogland.step_right(
+                    step_size_um=self.step_um, ignore_spectrogram=True
+                )
                 # connect motor finished flag to step_two
                 self.frogland.runnable_update_motor.finished.connect(
                     self.step_two)
 
             # otherwise, flag that the spectrogram collection is done
             else:
-                # TODO are you sure you're not also supposed to call self.disconnect_signals() ?
                 self.disconnect_signals()
                 self.signal.finished.emit(None)
 
@@ -1237,97 +1151,8 @@ class CollectSpectrogram:
         self.step_one()
 
 
-class UpdateMotorPositionRunnable(qtc.QRunnable):
-    def __init__(self, motor_interface, event_to_clear):
-        super().__init__()
-
-        motor_interface: MotorInterface
-        self.motor_interface = motor_interface
-        self.signal = Signal()
-        self.started = self.signal.started
-        self.progress = self.signal.progress
-        self.finished = self.signal.finished
-        self._stop_initiated = False
-
-        event_to_clear: threading.Event
-        self.event_to_clear = event_to_clear
-
-    """
-    I ran into an error where I believe the program was writing two
-    messages to the port at the same time (get position, and stop). So,
-    it's important to enforce sequential writing to the port. I'm doing that
-    by putting the stop command in the run loop.
-    """
-
-    def stop(self):
-        self._stop_initiated = True
-
-    def run(self):
-        while self.motor_interface.motor.is_in_motion:
-            if self._stop_initiated:
-                self.motor_interface.motor.stop_motor()
-
-            pos = self.motor_interface.pos_um
-            self.progress.emit(pos)
-            # time.sleep(.001)
-
-        # stop flag has been set to True, and the loop has terminated
-        # clear the event
-        self.event_to_clear.clear()
-
-        pos = self.motor_interface.pos_um
-        self.progress.emit(pos)
-        self.finished.emit(None)
-
-
-class UpdateSpectrumRunnable(qtc.QRunnable):
-    """Runnable class for the ContinuousUpdate class"""
-
-    def __init__(self, spectrometer, event_to_clear, event_to_set):
-        super().__init__()
-
-        # this class takes as input the spectrometer which it will
-        # continuously pull the the spectrum from
-        spectrometer: util.Spectrometer
-        self.spectrometer = spectrometer
-        # also initialize a signal so you can transmit the spectrum to the
-        # main Continuous Update class
-        self.signal = Signal()
-        self.started = self.signal.started
-        self.progress = self.signal.progress
-        self.finished = self.signal.finished
-
-        # initialize stop signal to false
-        self._stop = False
-
-        event_to_clear: threading.Event
-        event_to_set: threading.Event
-        self.event_to_clear = event_to_clear
-        self.event_to_set = event_to_set
-
-    # set stop signal to true
-    def stop(self):
-        self._stop = True
-
-    def run(self):
-        # while stop is false, continuously get the spectrum
-        while not self._stop:
-            # get the spectrum
-            wavelengths, intensities = self.spectrometer.get_spectrum()
-            # emit the spectrum as a signal
-            self.progress.emit([wavelengths, intensities])
-
-            if emulating_spectrometer:
-                sleep_time = self.spectrometer.integration_time_micros * 1e-6
-                time.sleep(sleep_time)
-
-        # stop flag has been set to True, and the loop has terminated
-        # clear the event
-        self.event_to_clear.clear()
-        self.event_to_set.set()
-
-
-if __name__ == '__main__':
-    app = qt.QApplication([])
+if __name__ == "__main__":
+    app = qt.QApplication(sys.argv)
     gui = MainWindow()
-    app.exec()
+    gui.show()
+    sys.exit(app.exec())

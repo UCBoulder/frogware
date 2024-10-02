@@ -11,20 +11,20 @@ from scipy.misc import face
 class PlotWidget(pg.PlotWidget):
     def __init__(self, parent):
         super().__init__(parent)
-        self.setBackground('w')
-        self.getAxis('left').setPen('k')
-        self.getAxis('bottom').setPen('k')
-        self.getAxis('left').setTextPen('k')
-        self.getAxis('bottom').setTextPen('k')
+        self.setBackground("w")
+        self.getAxis("left").setPen("k")
+        self.getAxis("bottom").setPen("k")
+        self.getAxis("left").setTextPen("k")
+        self.getAxis("bottom").setTextPen("k")
 
-        self.xmin, self.xmax = 0., 1.
-        self.ymin, self.ymax = 0., 1.
+        self.xmin, self.xmax = 0.0, 1.0
+        self.ymin, self.ymax = 0.0, 1.0
 
     def set_xlabel(self, label):
-        self.getAxis('bottom').setLabel(label)
+        self.getAxis("bottom").setLabel(label)
 
     def set_ylabel(self, label):
-        self.getAxis('left').setLabel(label)
+        self.getAxis("left").setLabel(label)
 
     def set_xmin(self, xmin):
         self.setXRange(xmin, self.xmax)
@@ -43,7 +43,7 @@ class PlotWidget(pg.PlotWidget):
         self.ymax = ymax
 
 
-def create_curve(color='b', width=2, x=None, y=None):
+def create_curve(color="b", width=2, x=None, y=None):
     curve = pg.PlotDataItem(pen=pg.mkPen(color=color, width=width))
     if (x is not None) and (y is not None):
         curve.setData(x, y)
@@ -126,10 +126,10 @@ class PlotWindow:
         self.le_wl_ll.editingFinished.connect(self.update_xmin)
 
     def update_line_edits_to_properties(self):
-        self.le_ll.setText('%.3f' % self.ymin)
-        self.le_ul.setText('%.3f' % self.ymax)
-        self.le_wl_ll.setText('%.3f' % self.xmin)
-        self.le_wl_ul.setText('%.3f' % self.xmax)
+        self.le_ll.setText("%.3f" % self.ymin)
+        self.le_ul.setText("%.3f" % self.ymax)
+        self.le_wl_ll.setText("%.3f" % self.xmin)
+        self.le_wl_ul.setText("%.3f" % self.xmax)
 
     def format_to_current_viewBox(self):
         rect = self.plotwidget.viewRect()
@@ -164,29 +164,29 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.show()
-        self.setBackground('w')
+        self.setBackground("w")
 
         self.PlotItem = pg.PlotItem()
         self.addItem(self.PlotItem)
 
-        self.PlotItem.getAxis('left').setPen('k')
-        self.PlotItem.getAxis('bottom').setPen('k')
-        self.PlotItem.getAxis('left').setTextPen('k')
-        self.PlotItem.getAxis('bottom').setTextPen('k')
+        self.PlotItem.getAxis("left").setPen("k")
+        self.PlotItem.getAxis("bottom").setPen("k")
+        self.PlotItem.getAxis("left").setTextPen("k")
+        self.PlotItem.getAxis("bottom").setTextPen("k")
 
         self.ii = pg.ImageItem()
         self.PlotItem.addItem(self.ii)
 
         # self.plot_image()
 
-        self.xmin, self.xmax = 0., 1.
-        self.ymin, self.ymax = 0., 1.
+        self.xmin, self.xmax = 0.0, 1.0
+        self.ymin, self.ymax = 0.0, 1.0
 
     def set_xlabel(self, label):
-        self.PlotItem.getAxis('bottom').setLabel(label)
+        self.PlotItem.getAxis("bottom").setLabel(label)
 
     def set_ylabel(self, label):
-        self.PlotItem.getAxis('left').setLabel(label)
+        self.PlotItem.getAxis("left").setLabel(label)
 
     def set_xmin(self, xmin):
         self.PlotItem.setXRange(xmin, self.xmax)
@@ -204,12 +204,11 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
         self.PlotItem.setYRange(self.ymin, ymax)
         self.ymax = ymax
 
-    def set_cmap(self, cmap='nipy_spectral'):
+    def set_cmap(self, cmap="nipy_spectral"):
         _, lut = get_colormap(cmap)
         self.ii.setLookupTable(lut)
 
-    def scale_axes(self, x=np.array([0, 1]), y=np.array([0, 1]), format='xy'):
-
+    def scale_axes(self, x=np.array([0, 1]), y=np.array([0, 1]), format="xy"):
         # reset the transformation or else each time you collect a spectrogram
         # it shrinks the plot
         self.ii.resetTransform()
@@ -217,14 +216,32 @@ class ImageWithAxisWidget(pg.GraphicsLayoutWidget):
         xlims, ylims = x[[0, -1]], y[[0, -1]]
         x0, y0 = xlims[0], ylims[0]
 
-        if format == 'ij':
+        if format == "ij":
             yscale, xscale = len(x), len(y)
-            self.ii.translate(y0, x0)
-            self.ii.scale(np.diff(ylims) / yscale, np.diff(xlims) / xscale)
-        elif format == 'xy':
+
+            # This is deprecated! translate is not an attribute of pg.ImageItem() anymore!
+            # self.ii.translate(y0, x0)
+            # self.ii.scale(np.diff(ylims) / yscale, np.diff(xlims) / xscale)
+
+            # try this instead
+            tr = qtg.QTransform()
+            tr.translate(y0, x0)
+            tr.scale(np.diff(ylims) / yscale, np.diff(xlims) / xscale)
+            self.ii.setTransform(tr)
+
+        elif format == "xy":
             xscale, yscale = len(x), len(y)
-            self.ii.translate(x0, y0)
-            self.ii.scale(np.diff(xlims) / xscale, np.diff(ylims) / yscale)
+
+            # This is deprecated! translate is not an attribute of pg.ImageItem() anymore!
+            # self.ii.translate(x0, y0)
+            # self.ii.scale(np.diff(xlims) / xscale, np.diff(ylims) / yscale)
+
+            # try this instead
+            tr = qtg.QTransform()
+            tr.translate(x0, y0)
+            tr.scale(np.diff(xlims) / xscale, np.diff(ylims) / yscale)
+            self.ii.setTransform(tr)
+
         else:
             raise ValueError("format should be 'ij' or 'xy'")
 
