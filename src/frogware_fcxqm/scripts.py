@@ -4,7 +4,6 @@ import sys
 
 
 def frogware():
-    print('hi')
     app = QApplication(sys.argv)
     gui = MainWindow()
     gui.show()
