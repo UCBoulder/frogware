@@ -1,6 +1,8 @@
 from .device_interfaces import LinearMotor, StageOutOfBoundsException
 from pylablib.devices.Thorlabs import KinesisMotor
+from pylablib.devices.Thorlabs.base import ThorlabsError
 from .utilities import T_fs_to_dist_um, dist_um_to_T_fs
+from numpy import inf
 
 '''
 Generic class for all Thorlabs linear motors which 
@@ -25,10 +27,18 @@ class ThorlabsKinesisMotor(LinearMotor):
 
     def pos_um(self):
         # default units are (m)
-        return 1e6 * self.motor.get_position()
+        try:
+            self._pos_um = 1e6 * self.motor.get_position()
+        except ThorlabsError:
+            pass
+        return self._pos_um
+        
 
     def is_in_motion(self) -> bool:
-        return self.motor.is_moving()
+        try:
+            return self.motor.is_moving()
+        except ThorlabsError:
+            return True
 
     def move_to_um(self, loc_um: float):
         if not (self.travel_limits_um[0] <= loc_um <= self.travel_limits_um[1]):
@@ -37,7 +47,10 @@ class ThorlabsKinesisMotor(LinearMotor):
         else:
             # default units are (m)
             loc_m = loc_um * 1e-6
-            self.motor.move_to(loc_m, scale=True)
+            try:
+                self.motor.move_to(loc_m, scale=True)
+            except ThorlabsError:
+                pass
 
     def move_by_um(self, dist_um):
         dist_m = dist_um * 1e-6
@@ -47,10 +60,19 @@ class ThorlabsKinesisMotor(LinearMotor):
             raise StageOutOfBoundsException(
                 "Location would exceed software limits")
         else:
-            self.motor.move_by(distance=dist_m)
+            try: 
+                self.motor.move_by(distance=dist_m)
+            except ThorlabsError:
+                pass
 
     def stop(self, blocking=True) -> None:
-        self.motor.stop(sync=blocking)
+        try:
+            self.motor.stop(sync=blocking)
+        except ThorlabsError:
+            pass
 
     def home(self, blocking: bool) -> None:
-        self.motor.home(sync=blocking)
+        try:
+            self.motor.home(sync=blocking)
+        except ThorlabsError:
+            pass
