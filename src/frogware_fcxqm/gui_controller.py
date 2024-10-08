@@ -69,6 +69,8 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         # self.continuous_update_tab.stop
         print("Frogging has stopped")
         self.frog_land.stop_all_runnables()
+        self.motor.close()
+        self.spectrometer.close()
 
     '''
     Connect specific motor/spectrometer objects. Must implement

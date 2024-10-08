@@ -18,12 +18,10 @@ class ThorlabsKinesisMotor(LinearMotor):
     def __init__(self, serial_no: int):
         '''auto-detect stage step -> distance calibration'''
         self.motor = KinesisMotor(serial_no, scale="stage")
-        self.home(blocking=False)
         if self.motor.get_scale_units() != 'm':
             raise Exception(
                 "No step to distance calibration found. Input this manually.")
         self.travel_limits_um = (0, 2e4)
-        self.motor.wait_for_home()
 
     def pos_um(self):
         # default units are (m)
@@ -76,3 +74,6 @@ class ThorlabsKinesisMotor(LinearMotor):
             self.motor.home(sync=blocking)
         except ThorlabsError:
             pass
+    
+    def close(self) -> None:
+        self.motor.close()

@@ -114,6 +114,13 @@ class LinearMotor(ABC):
         pass
 
     '''
+    Closes the backend to avoid hanging processes
+    '''
+    @abstractmethod
+    def close(self) -> None:
+        pass
+
+    '''
     Saves T0 to T0_um.txt
     '''
 
@@ -173,17 +180,28 @@ class Spectrometer(ABC):
     def scans_to_avg(self) -> int:
         pass
 
-    '''Sets the number of scans averaged together in each spectrum'''
+    '''
+    Sets the number of scans averaged together in each spectrum
+    '''
     @scans_to_avg.setter
     @abstractmethod
     def scans_to_avg(self, N) -> None:
         pass
 
+    '''
+    Returns the integration time in microseconds
+    '''
     @property
     @abstractmethod
     def integration_time_micros_limit(self) -> tuple[int, int]:
         pass
 
+    '''
+    Closes the backend to avoid hanging processes
+    '''
+    @abstractmethod
+    def close(self) -> None:
+        pass
 
 class StageOutOfBoundsException(Exception):
     def __init__(self, message):

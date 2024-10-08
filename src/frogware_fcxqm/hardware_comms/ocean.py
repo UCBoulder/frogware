@@ -59,6 +59,9 @@ class OceanOpticsSpectrometer(Spectrometer):
     def integration_time_micros_limit(self):
         return self.spectrometer.integration_time_micros_limits
 
+    def close(self):
+        self.spectrometer.close()
+
 
 # if __name__ == "__main__":
 #     import seabreeze
