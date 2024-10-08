@@ -18,7 +18,7 @@ classifiers = [
     "Private :: Do Not Upload"
 ]
 
-[project.gui-scripts]
+[project.scripts]
 frogware = "frogware_fcxqm:scripts.frogware"
 
 [tool.unidep]

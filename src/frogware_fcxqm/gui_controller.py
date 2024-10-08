@@ -752,10 +752,10 @@ class FrogLand:
         self.move_to_pos_fs = move_to_pos_fs
 
     def update_stepsize_le_um(self):
-        self.le_step_size_um.setText("%.3f" % self.step_size_um)
+        self.le_step_size_um.setText("%.1f" % self.step_size_um)
 
     def update_stepsize_le_fs(self):
-        self.le_step_size_fs.setText("%.3f" % self.step_size_fs)
+        self.le_step_size_fs.setText("%.1f" % self.step_size_fs)
 
     def update_stepsize_spectrogram_le_um(self):
         self.le_step_size_um_tab2.setText(
@@ -778,10 +778,10 @@ class FrogLand:
         self.le_endpos_fs.setText("%.0f" % self.end_pos_fs)
 
     def update_move_to_pos_le_um(self):
-        self.le_pos_um.setText("%.3f" % self.move_to_pos_um)
+        self.le_pos_um.setText("%.1f" % self.move_to_pos_um)
 
     def update_move_to_pos_le_fs(self):
-        self.le_pos_fs.setText("%.3f" % self.move_to_pos_fs)
+        self.le_pos_fs.setText("%.1f" % self.move_to_pos_fs)
 
     def start_continuous_update(self):
         # I would like to have the start_continuous_update button
@@ -888,11 +888,11 @@ class FrogLand:
     def update_current_pos(self, pos_um):
         self.curr_mot_pos_um = pos_um
         motor_pos_fs = dist_um_to_T_fs(pos_um - self.motor.T0_um)
-        self.lcd_current_pos_um.display("%.3f" % pos_um)
-        self.lcd_current_pos_fs.display("%.3f" % motor_pos_fs)
+        self.lcd_current_pos_um.display("%.1f" % pos_um)
+        self.lcd_current_pos_fs.display("%.1f" % motor_pos_fs)
 
-        self.lcd_current_pos_um_tab2.display("%.3f" % pos_um)
-        self.lcd_current_pos_fs_tab2.display("%.3f" % motor_pos_fs)
+        self.lcd_current_pos_um_tab2.display("%.1f" % pos_um)
+        self.lcd_current_pos_fs_tab2.display("%.1f" % motor_pos_fs)
 
     """
     The motor takes a while to stop (it slows to a stop). Using a wait() flag
