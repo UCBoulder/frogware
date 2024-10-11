@@ -12,10 +12,10 @@ use the Kinesis software stack
 
 class ThorlabsKinesisMotor(LinearMotor):
     '''
-    Instantiated by the serial number of the control module
+    Instantiate by the serial number of the control module
     '''
     def __init__(self, serial_no: int):
-        '''auto-detect stage step -> distance calibration'''
+        #auto-detect stage step -> distance calibration
         self.motor = KinesisMotor(serial_no, scale="stage")
         if self.motor.get_scale_units() != 'm':
             raise Exception(

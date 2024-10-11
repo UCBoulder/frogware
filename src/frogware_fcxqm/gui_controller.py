@@ -30,7 +30,7 @@ tol_um = 0.1  # 100 nm
 edge_limit_buffer_mm = 0.0  # 1 um
 
 # Popup error window
-class ErrorWindow(qt.QWidget, Ui_Form):
+class ErrorWindow(qt.QDialog, Ui_Form):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
@@ -41,7 +41,7 @@ class ErrorWindow(qt.QWidget, Ui_Form):
 
 def raise_error(error_window, text):
     error_window.set_text(text)
-    error_window.show()
+    error_window.exec()
 
 
 class MainWindow(qt.QMainWindow, Ui_MainWindow):
