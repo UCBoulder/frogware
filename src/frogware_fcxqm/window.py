@@ -9,11 +9,10 @@
 
 
 from .plottablefunctions import ImageWithAxisWidget, PlotWidget
-from . import qrc 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_MainWindow(object):
+class MainWindow_Ui(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1036, 698)

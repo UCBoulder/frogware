@@ -7,7 +7,7 @@
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets, QDialog
 
 
 class Ui_Form(object):
@@ -33,3 +33,16 @@ class Ui_Form(object):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
         self.label.setText(_translate("Form", "Error"))
+
+class ErrorWindow(QDialog, Ui_Form):
+    def __init__(self):
+        super().__init__()
+        self.setupUi(self)
+
+    def set_text(self, text):
+        self.textBrowser.setText(text)
+
+
+def raise_error(error_window, text):
+    error_window.set_text(text)
+    error_window.exec()

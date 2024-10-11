@@ -11,7 +11,7 @@ import numpy as np
 from .runnables import UpdateMotorPositionRunnable, UpdateSpectrumRunnable, Signal
 from .window import Ui_MainWindow
 from . import plottablefunctions as plotf
-from .error import Ui_Form
+from .error import ErrorWindow, raise_error
 from .hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, SpectrometerIntegrationException, DeviceCommsException
 from .hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
 from .hardware_comms.connect_devices import connect_devices
@@ -25,19 +25,6 @@ pool = qtc.QThreadPool.globalInstance()
 tol_um = 0.1  # 100 nm
 edge_limit_buffer_mm = 0.0  # 1 um
 
-# Popup error window
-class ErrorWindow(qt.QDialog, Ui_Form):
-    def __init__(self):
-        super().__init__()
-        self.setupUi(self)
-
-    def set_text(self, text):
-        self.textBrowser.setText(text)
-
-
-def raise_error(error_window, text):
-    error_window.set_text(text)
-    error_window.exec()
 
 
 class MainWindow(qt.QMainWindow, Ui_MainWindow):
@@ -554,21 +541,6 @@ class FrogLand:
             self.stop_motor()
         if self.cont_update_runnable_exists.is_set():
             self.stop_continuous_update()
-
-    # @property
-    # def curr_mot_pos_um(self):
-    #     if self._curr_mot_pos_um is None:
-    #         return self.motor.pos_um
-    #     else:
-    #         return self._curr_mot_pos_um
-
-    # @curr_mot_pos_um.setter
-    # def curr_mot_pos_um(self, value_um):
-    #     self._curr_mot_pos_um = value_um
-
-    # @property
-    # def T0_um(self):
-    #     return self.motor.T0_um
 
     @property
     def step_size_um(self):
