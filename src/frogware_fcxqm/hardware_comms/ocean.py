@@ -37,11 +37,11 @@ class OceanOpticsSpectrometer(Spectrometer):
     def scans_to_avg(self):
         return self._scans_to_avg
 
-    '''
-    Currently non-functional with the USB2000 and cseabreeze backend
-    '''
     @scans_to_avg.setter
     def scans_to_avg(self, N: int):
+        '''
+        Currently non-functional with the USB2000 and cseabreeze backend
+        '''
         if N <= 0:
             raise SpectrometerAverageException(
                 "Spectrometer must average at least 1 scan")
