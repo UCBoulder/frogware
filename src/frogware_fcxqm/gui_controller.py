@@ -12,14 +12,10 @@ from .runnables import UpdateMotorPositionRunnable, UpdateSpectrumRunnable, Sign
 from .window import Ui_MainWindow
 from . import plottablefunctions as plotf
 from .error import Ui_Form
-from .hardware_comms.kinesis import ThorlabsKinesisMotor
-from .hardware_comms.ocean import OceanOpticsSpectrometer
 from .hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, SpectrometerIntegrationException, DeviceCommsException
 from .hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
 from .hardware_comms.connect_devices import connect_devices
 
-from seabreeze.spectrometers import Spectrometer as ooSpec
-from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices
 
 # will be used later on for any continuous update of the display that lasts more
 # than a few seconds
@@ -83,6 +79,7 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
 
         except DeviceCommsException as e:
             raise_error(self.error_window, e.message)
+            sys.exit(1)
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)

@@ -204,30 +204,47 @@ class Spectrometer(ABC):
 
     '''
     The intensities read by each pixel in the spectrometer (in arbitrary units).
-    
-    returns: 
+
+    returns: NDArray of floats corresponding to the intensity in arbitrary units
     '''
     @abstractmethod
     def intensities(self) -> np.ndarray[np.float64]:
         pass
 
-    '''Returns the wavelength bins (in nanometeres) '''
+    '''
+    Returns the wavelength bins (in nanometers).
+    
+    returns: NDArray of floats enumarating the wavelength bins in nanometers'''
     @abstractmethod
     def wavelengths(self) -> np.ndarray[np.float64]:
         pass
 
-    '''Returns a 2-D list of the wavelengths (0) and intensities (1)'''
+    '''
+    Returns a 2-D list of the wavelengths (0) and intensities (1)
+
+    returns: 2DArray where,
+            [0] = wavelengths
+            [1] = intensities
+    '''
     @abstractmethod
     def spectrum(self) -> np.ndarray[np.float64]:
         pass
 
-    '''Reads the integration time in microseconds'''
+    '''
+    Reads the integration time in microseconds.
+    
+    return: hardware integration time, in microseconds
+    '''
     @property
     @abstractmethod
     def integration_time_micros(self) -> int:
         pass
 
-    '''Sets the integration time in microseconds'''
+    '''
+    Sets the integration time in microseconds
+    
+    value: integration time, in microseconds
+    '''
     @integration_time_micros.setter
     @abstractmethod
     def integration_time_micros(self, value) -> None:
@@ -235,7 +252,9 @@ class Spectrometer(ABC):
 
     '''
     Reads the number of scans averaged together in each
-    spectrum
+    spectrum.
+    
+    returns: number of averages per spectrum
     '''
     @property
     @abstractmethod
@@ -243,7 +262,9 @@ class Spectrometer(ABC):
         pass
 
     '''
-    Sets the number of scans averaged together in each spectrum
+    Sets the number of scans averaged together in each spectrum.
+
+    N: number of averages per spectrum
     '''
     @scans_to_avg.setter
     @abstractmethod
@@ -251,7 +272,9 @@ class Spectrometer(ABC):
         pass
 
     '''
-    Returns the integration time in microseconds
+    Returns the integration time in microseconds.
+
+    return: listlike of (lower bound, upper bound) in microseconds
     '''
     @property
     @abstractmethod
@@ -259,7 +282,7 @@ class Spectrometer(ABC):
         pass
 
     '''
-    Closes the backend to avoid hanging processes
+    Closes the backend to avoid hanging processes.
     '''
     @abstractmethod
     def close(self) -> None:
@@ -272,6 +295,11 @@ class StageOutOfBoundsException(Exception):
 
 
 class StageLimitsNotSetException(Exception):
+    def __init__(self, message):
+        self.message = message
+
+
+class StageNotCalibratedException(Exception):
     def __init__(self, message):
         self.message = message
 

@@ -1,6 +1,5 @@
 from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices
 from seabreeze.spectrometers import Spectrometer as ooSpec
-from seabreeze.cseabreeze import SeaBreezeError
 
 from .device_interfaces import LinearMotor, Spectrometer, DeviceCommsException
 from .kinesis import ThorlabsKinesisMotor
@@ -19,12 +18,12 @@ connection/initialization of either device
 def connect_devices() -> tuple[LinearMotor, Spectrometer]:
     try:
         motor = ThorlabsKinesisMotor(list_kinesis_devices()[0][0])
-    except IndexError:
+    except:
         raise DeviceCommsException('Motor did not connect')
 
     try:
         spectrometer = OceanOpticsSpectrometer(ooSpec.from_first_available())
-    except SeaBreezeError:
+    except:
         raise DeviceCommsException('Spectrometer did not connect')
 
     spectrometer.integration_time_micros = 30000
