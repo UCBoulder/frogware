@@ -6,6 +6,9 @@ A general, extensible framework for taking FROG measurements with a linear delay
 ![img_2.png](assets/readme/img_2.png)
 
 ## Installation
+Run `pip install git+https://github.com/UCBoulder/frogware.git` in your choice of virtual environment.
+The script is then executed with `frogware`. If you are not familiar with python or want a
+standalone executable, instead install with [`pipx`](https://github.com/pypa/pipx?tab=readme-ov-file).
 
 ### Dependencies
 * `ocean.py` relies on the cseabreeze backend to communicate with OceanOptics spectrometers. 
