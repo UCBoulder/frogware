@@ -14,8 +14,9 @@ from . import plottablefunctions as plotf
 from .error import Ui_Form
 from .hardware_comms.kinesis import ThorlabsKinesisMotor
 from .hardware_comms.ocean import OceanOpticsSpectrometer
-from .hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, SpectrometerIntegrationException
+from .hardware_comms.device_interfaces import LinearMotor, Spectrometer, SpectrometerAverageException, StageOutOfBoundsException, SpectrometerIntegrationException, DeviceCommsException
 from .hardware_comms.utilities import T_fs_to_dist_um, dist_um_to_T_fs
+from .hardware_comms.connect_devices import connect_devices
 
 from seabreeze.spectrometers import Spectrometer as ooSpec
 from pylablib.devices.Thorlabs.kinesis import list_kinesis_devices
@@ -54,7 +55,6 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
         self.show()
 
         self.error_window = ErrorWindow()
-
         self.connect_motor_spectrometer()
 
         self.frog_land = FrogLand(self, self.motor, self.spectrometer)
@@ -78,10 +78,11 @@ class MainWindow(qt.QMainWindow, Ui_MainWindow):
     '''
 
     def connect_motor_spectrometer(self):
-        self.motor = ThorlabsKinesisMotor(list_kinesis_devices()[0][0])
-        self.motor.travel_limits_um = (0, 25e6)
-        self.spectrometer = OceanOpticsSpectrometer(
-            ooSpec.from_first_available())
+        try:
+            self.motor, self.spectrometer = connect_devices()
+
+        except DeviceCommsException as e:
+            raise_error(self.error_window, e.message)
 
     def connect_signals(self):
         self.tableWidget.cellChanged.connect(self.slot_for_tablewidget)

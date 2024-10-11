@@ -8,3 +8,6 @@ def frogware():
     gui = MainWindow()
     gui.show()
     sys.exit(app.exec())
+
+if __name__ == "__main__":
+    frogware()

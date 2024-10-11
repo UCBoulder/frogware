@@ -14,7 +14,6 @@ class ThorlabsKinesisMotor(LinearMotor):
     '''
     Instantiated by the serial number of the control module
     '''
-
     def __init__(self, serial_no: int):
         '''auto-detect stage step -> distance calibration'''
         self.motor = KinesisMotor(serial_no, scale="stage")

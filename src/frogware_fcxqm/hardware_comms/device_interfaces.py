@@ -221,3 +221,7 @@ class SpectrometerIntegrationException(Exception):
 class SpectrometerAverageException(Exception):
     def __init__(self, message):
         self.message = message
+
+class DeviceCommsException(Exception):
+    def __init__(self, message):
+        self.message = message
