@@ -1,17 +1,23 @@
 from abc import ABC, abstractmethod
-from .utilities import T_fs_to_dist_um, dist_um_to_T_fs
 import numpy as np
 from platformdirs import user_data_path
 from pathlib import Path
+
+from .utilities import T_fs_to_dist_um, dist_um_to_T_fs
+
 '''
-Abstract class for linear motors
+Abstract class for linear motors. Implement this with a subclass for
+new motor devices.
 '''
 
 
 class LinearMotor(ABC):
     '''
-    Tuple of the software limits for the stage
-    (lower, upper) in microns
+    Software limits for the stage
+
+    returns: (lower bound, upper bound), in microns
+    raises: StageLimitsNotSetException if limits are not
+    set
     '''
     @property
     def travel_limits_um(self) -> tuple[float]:
@@ -21,13 +27,25 @@ class LinearMotor(ABC):
             raise StageLimitsNotSetException(
                 "Motor software limits not initialized")
 
+    '''
+    Sets software limits of the stage. Should be initialized in 
+    .connect_devices.connect_devices() or the constructor for the
+    subclass.
+    
+    limits: listlike containing (lower bound, upper bound), in microns
+    '''
+
     @travel_limits_um.setter
     def travel_limits_um(self, limits: tuple[float]) -> None:
         self._travel_limits = limits[:2]
 
     '''
     Location of the stage corresponding to time zero 
-    (i.e. the center of the FROG trace)
+    (i.e. the center of the FROG trace). Calls self._read_T0_from_file()
+    and self._write_T0_to_file() to save T0 to persistent storage between
+    program executions.
+
+    returns: float of stage displacement at time zero, in microns
     '''
     @property
     def T0_um(self) -> float:
@@ -41,66 +59,94 @@ class LinearMotor(ABC):
                 self._write_T0_to_file()
             return self._T0_um
 
+    '''
+    Sets the stage location corresponding to time zero.
+    
+    dist_um: stage location in microns
+    '''
     @T0_um.setter
     def T0_um(self, dist_um: float):
         self._T0_um = dist_um
         self._write_T0_to_file()
 
-    @property
-    def datapath(self) -> Path:
-        return user_data_path(appname='frogware', appauthor='FCxQM') 
     '''
     Get stage position in microns
+
+    returns: location of the stage, in microns
     '''
     @abstractmethod
     def pos_um(self) -> float:
         pass
 
     '''
-    Absolute location of the stage (in femtoseconds,
-    with respect to time zero)
+    Get stage location in femtoseconds, with respect to time zero.
+
+    returns: float of the stage location, in femtoseconds
     '''
 
     def pos_fs(self) -> float:
         return dist_um_to_T_fs(self.pos_um - self.T0_um)
 
     '''
+    Move the relative position of the stage (micron units).
+
+    value_um: distance of relative move (positive or negative), in microns
+    raises: StageOutOfBoundException if the move would exceed
+    the software limits of the stage.
+    '''
+
+    @abstractmethod
+    def move_by_um(self, value_um: float) -> None:
+        pass
+
+    '''
     Move the relative position of the stage (femtosecond units)
-    Should raise a StageOutOfBoundsException if it
-    would exceed the software limits.
+    
+    value_fs: distance of the relative move (positive or negative), in
+    femtoseconds
+    raises: StageOutOfBoundException if the move would exceed
+    the software limits of the stage.
     '''
 
     def move_by_fs(self, value_fs: float) -> None:
         self.move_by_um(T_fs_to_dist_um(value_fs))
 
     '''
-    Move the relative position of the stage (micron units)
-    Should raise a StageOutOfBoundsException if it
-    would exceed the software limits.
-    '''
-    @abstractmethod
-    def move_by_um(self, value_um: float) -> None:
-        pass
-
-    '''
     Move to an absolute location (micron units).
-    Should raise a StageOutOfBoundsException if it
-    would exceed the software limits.
+
+    value_um: desired stage location, in microns
+    raises: StageOutOfBoundException if the move would exceed
+    the software limits of the stage.
     '''
     @abstractmethod
     def move_to_um(self, value_um: float) -> None:
         pass
 
     '''
-    Home the stage. blocking indicates whether the program waits until the operation
-    is complete
+    Move to an absolute location (femtosecond units).
+
+    value_fs: desired stage location, in femtoseconds
+    raises: StageOutOfBoundException if the move would exceed
+    the software limits of the stage.
+    '''
+
+    def move_to_um(self, value_fs: float) -> None:
+        self.move_to_um(T_fs_to_dist_um(value_fs))
+
+    '''
+    Home the stage. 
+
+    blocking: True if program should pause until the stage is homed.
+    False otherwise.
     '''
     @abstractmethod
-    def home(self, blocking: bool) -> None:
+    def home(self, blocking=False) -> None:
         pass
 
     '''
-    Checks if the stage is in motion
+    Checks if the stage is in motion.
+    
+    returns: True if stage is in motion. False otherwise.
     '''
     @abstractmethod
     def is_in_motion(self) -> bool:
@@ -108,20 +154,32 @@ class LinearMotor(ABC):
 
     '''
     Stops the stage, interrupting any current operations.
+
+    blocking: True if program should pause until the stage is homed.
+    False otherwise.
     '''
     @abstractmethod
-    def stop(self, blocking: bool) -> None:
+    def stop(self, blocking=True) -> None:
         pass
 
     '''
-    Closes the backend to avoid hanging processes
+    Closes the backend to avoid hanging processes.
     '''
     @abstractmethod
     def close(self) -> None:
         pass
 
     '''
-    Saves T0 to T0_um.txt
+    Location on the filesystem for persistent storage of configuration information
+    
+    returns: pathlib Path to the directory for persistent storage
+    '''
+    @property
+    def datapath(self) -> Path:
+        return user_data_path(appname='frogware', appauthor='FCxQM')
+
+    '''
+    Saves T0 to T0_um.txt in the directory defined by self.datapath
     '''
 
     def _read_T0_from_file(self) -> None:
@@ -129,7 +187,7 @@ class LinearMotor(ABC):
             self._T0_um = float(file.readline())
 
     '''
-    Reads T0 from T0_um.txt
+    Reads T0 from T0_um.txt in the directory defined by self.datapath
     '''
 
     def _write_T0_to_file(self) -> None:
@@ -144,7 +202,11 @@ Abstract class for spectrometers
 
 class Spectrometer(ABC):
 
-    '''Returns the intensities (in arbitrary units)'''
+    '''
+    The intensities read by each pixel in the spectrometer (in arbitrary units).
+    
+    returns: 
+    '''
     @abstractmethod
     def intensities(self) -> np.ndarray[np.float64]:
         pass
@@ -203,6 +265,7 @@ class Spectrometer(ABC):
     def close(self) -> None:
         pass
 
+
 class StageOutOfBoundsException(Exception):
     def __init__(self, message):
         self.message = message
@@ -221,6 +284,7 @@ class SpectrometerIntegrationException(Exception):
 class SpectrometerAverageException(Exception):
     def __init__(self, message):
         self.message = message
+
 
 class DeviceCommsException(Exception):
     def __init__(self, message):

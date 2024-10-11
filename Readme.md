@@ -37,7 +37,7 @@ I have set a buffer in the program that will not allow the motor to move within 
 ## For Developers
 
 * `device_interfaces.py` : Interfaces corresponding to the motor (LinearMotor) and spectrometer (Spectrometer). To include new hardware, implement all of the
-methods indicated in each interface, as well as any exception handling listed in the comments.
+methods indicated in each interface, as well as any exception handling listed in the docstrings.
 
 * `kinesis.py` : Implements the LinearMotor interface for Thorlabs Kinesis devices. 
 

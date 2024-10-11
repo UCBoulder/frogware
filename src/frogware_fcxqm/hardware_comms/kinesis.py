@@ -20,7 +20,6 @@ class ThorlabsKinesisMotor(LinearMotor):
         if self.motor.get_scale_units() != 'm':
             raise Exception(
                 "No step to distance calibration found. Input this manually.")
-        self.travel_limits_um = (0, 2e4)
 
     def pos_um(self):
         # default units are (m)
@@ -68,7 +67,7 @@ class ThorlabsKinesisMotor(LinearMotor):
         except ThorlabsError:
             pass
 
-    def home(self, blocking: bool) -> None:
+    def home(self, blocking=False) -> None:
         try:
             self.motor.home(sync=blocking)
         except ThorlabsError:
