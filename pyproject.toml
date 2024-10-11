@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "unidep[toml]"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -14,26 +14,22 @@ requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Operating System :: Windows",
     "Private :: Do Not Upload"
 ]
-
-[project.scripts]
-frogware = "frogware_fcxqm:scripts.frogware"
-
-[tool.unidep]
-channels = ["conda-forge"]
 
 dependencies = [
   "matplotlib",
   "numpy",
-  "pyqt",
+  "pyqt5",
   "pyqtgraph",
   "pyserial",
   "pyusb",
   "pyvisa",
   "scipy",
   "seabreeze",
-  {pip = "pylablib"},
-  {pip = "platformdirs"}
+  "pylablib",
+  "platformdirs"
   ]
+[project.scripts]
+frogware = "frogware_fcxqm:scripts.frogware"
