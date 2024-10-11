@@ -1,6 +1,5 @@
 from .device_interfaces import Spectrometer, SpectrometerIntegrationException, SpectrometerAverageException
 from seabreeze.spectrometers import Spectrometer as ooSpec
-import numpy as np
 import seabreeze
 seabreeze.use('cseabreeze')
 
@@ -8,10 +7,6 @@ seabreeze.use('cseabreeze')
 class OceanOpticsSpectrometer(Spectrometer):
     def __init__(self, spectrometer: ooSpec):
         self.spectrometer = spectrometer
-        # initialize the integration time and number of scans to average to some value, and then update the actual
-        # spectrometer integration time in MainWindow (so the value here doesn't matter)
-        self.integration_time_micros = 30000
-        self.scans_to_avg = 1
 
     def intensities(self):
         return self.spectrometer.intensities()
@@ -42,9 +37,6 @@ class OceanOpticsSpectrometer(Spectrometer):
     def scans_to_avg(self):
         return self._scans_to_avg
 
-    '''
-    Only works when using cseabreeze backend (provided by Ocean Optics)
-    '''
     @scans_to_avg.setter
     def scans_to_avg(self, N: int):
         if N <= 0:

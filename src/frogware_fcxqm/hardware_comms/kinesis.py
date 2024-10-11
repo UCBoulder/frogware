@@ -1,11 +1,9 @@
-from .device_interfaces import LinearMotor, StageOutOfBoundsException
 from pylablib.devices.Thorlabs import KinesisMotor
 from pylablib.devices.Thorlabs.base import ThorlabsError
-from .utilities import T_fs_to_dist_um, dist_um_to_T_fs
-from numpy import inf
 
+from .device_interfaces import LinearMotor, StageOutOfBoundsException, StageNotCalibratedException
 '''
-Generic class for all Thorlabs linear motors which 
+Class for all Thorlabs linear motors which 
 use the Kinesis software stack
 '''
 
@@ -14,11 +12,12 @@ class ThorlabsKinesisMotor(LinearMotor):
     '''
     Instantiate by the serial number of the control module
     '''
+
     def __init__(self, serial_no: int):
-        #auto-detect stage step -> distance calibration
+        # auto-detect stage step -> distance calibration
         self.motor = KinesisMotor(serial_no, scale="stage")
         if self.motor.get_scale_units() != 'm':
-            raise Exception(
+            raise StageNotCalibratedException(
                 "No step to distance calibration found. Input this manually.")
 
     def pos_um(self):
@@ -28,7 +27,6 @@ class ThorlabsKinesisMotor(LinearMotor):
         except ThorlabsError:
             pass
         return self._pos_um
-        
 
     def is_in_motion(self) -> bool:
         try:
@@ -56,7 +54,7 @@ class ThorlabsKinesisMotor(LinearMotor):
             raise StageOutOfBoundsException(
                 "Location would exceed software limits")
         else:
-            try: 
+            try:
                 self.motor.move_by(distance=dist_m)
             except ThorlabsError:
                 pass
@@ -72,6 +70,6 @@ class ThorlabsKinesisMotor(LinearMotor):
             self.motor.home(sync=blocking)
         except ThorlabsError:
             pass
-    
+
     def close(self) -> None:
         self.motor.close()

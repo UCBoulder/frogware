@@ -5,6 +5,12 @@ A general, extensible framework for taking FROG measurements with a linear delay
 ![img_1.png](assets/readme/img_1.png)
 ![img_2.png](assets/readme/img_2.png)
 
+## Installation
+
+### Dependencies
+* `ocean.py` relies on the cseabreeze backend to communicate with OceanOptics spectrometers. 
+This can be obtained from either OceanView or OceanDirect (proprietary).
+
 ## For Users
 
 **Spectrum Continuous Update Tab:**
